@@ -1,0 +1,3 @@
+[submodule "Submodule/FooServer"]
+	path = Submodule/FooServer
+	url = https://github.com/vinthewrench/FooServer.git

@@ -1,0 +1,56 @@
+Alarm,Bool,2,Alarm condition active
+AR,Int,2,Alarm reason
+BMV,ignore,0,Model description (deprecated)
+CE,mAh,2,Charge consumed
+CS,Int,2,State of operation
+DM,‰,2,Mid-point deviation of the battery bank
+ERR,???,2,Error code
+FW,Int,2,Firmware version
+H1,mAh,2,Deepest discharge
+H10,Int,3,Number of automatic synchronizations
+H11,Int,3,Number of low main voltage alarms
+H12,Int,3,Number of high main voltage alarms
+H13,Int,3,Number of low aux. voltage alarms
+H14,Int,3,Number of high aux. voltage alarms
+H15,mV,2,Minimum auxiliary (battery) voltage
+H16,mV,2,Maximum auxiliary (battery) voltage
+H17,.01kWh,2,Discharged energy
+H18,.01kWh,2,Charged energy
+H19,.01kWh,2,Yield total (user resettable counter)
+H2,mAh,2,Last discharge
+H20,.01kWh,2,Yield today
+H21,W,2,Maximum power today
+H22,.01kWh,2,Yield yesterday
+H23,W,2,Maximum power yesterday
+H3,mAh,2,Average discharge
+H4,Int,2,Number of charge cycles
+H5,Int,2,Number of full discharges
+H6,mAh,2,Cumulative Ah drawn
+H7,mV,2,Minimum main (battery) voltage
+H8,mV,2,Maximum main (battery) voltage
+H9,sec,3,Time since full
+HSDS,Int,2,Day sequence number (0..364)
+I,mA,2,Current
+I_BT,degC,2,Battery temp.
+I_BV,V,2,Voltage
+I_FREQ,Hz,2,Frequency
+I_IPFV,V,2,I/P Fault Voltage
+I_IPV,V,2,I/P Voltage
+I_OPC,A,2,O/P Current
+I_OPV,V,2,O/P Voltage
+I_STATUS,Binary,2,Inverter Status
+IL,mA,2,Load current
+LOAD,Bool,2,Load output state (ON/OFF)
+MODE,Bool,2,Device mode
+P,W,2,Power
+PID,VE.PART,1,Product ID
+PPV,W,2,Panel power
+SER#,String,2,Serial number
+SOC,‰,2,Capacity left
+T,degC,2,Battery temp.
+TTG,mins,3,Time left
+V,mV,2,Voltage
+VM,mV,3,Mid-point voltage of the battery bank
+VPV,mV,2,Panel voltage
+WARN,Int,2,Warning reason
+MON,Int,2,DC monitor mode
