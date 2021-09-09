@@ -44,7 +44,7 @@ PumpHouseDB::~PumpHouseDB(){
 }
 
 
-void PumpHouseDB::clearAll(){
+void PumpHouseDB::clear(){
 	_values.clear();
 
 }
@@ -471,4 +471,135 @@ bool PumpHouseDB::initValueInfoFromFile(string filePath){
 }
 
 
+
+// MARK: -  API Secrets
+bool PumpHouseDB::apiSecretCreate(string APIkey, string APISecret){
+	return true;
+}
+
+bool PumpHouseDB::apiSecretSetSecret(string APIkey, string APISecret){
+	return true;
+}
+
+bool PumpHouseDB::apiSecretDelete(string APIkey){
+	return true;
+
+}
+
+bool PumpHouseDB::apiSecretGetSecret(string APIkey, string &APISecret){
+	return false;
+}
+
+bool PumpHouseDB::apiSecretMustAuthenticate(){
+	return false;
+}
+
+// MARK: -   SERVER PORTS
+void  PumpHouseDB::setAllowRemoteTelnet(bool remoteTelnet) {
+};
+
+bool  PumpHouseDB::getAllowRemoteTelnet() {
+	return true;
+};
+
+void  PumpHouseDB::setTelnetPort(int port){
+}
+
+int  	PumpHouseDB::getTelnetPort(){
+	return 2020;
+}
+
+void  PumpHouseDB::setRESTPort(int port){
+}
+
+int PumpHouseDB::getRESTPort(){
+	return 8080;
+}
+
+// MARK: -   JSON REQUESTS
+
+
+json PumpHouseDB::schemaJSON(){
+	
+	json schemaList;
+ 
+	for (auto& [key, sch] : _schema) {
+ 
+		json entry;
+		entry[string(JSON_ARG_NAME)] =   sch.description;
+		entry[string(JSON_ARG_UNITS)] =   sch.units;
+		entry[string(JSON_ARG_TRACKING)] =   sch.tracking;
+		entry[string(JSON_ARG_SUFFIX)] =   unitSuffixForKey(key);
+		schemaList[key] = entry;
+	}
+	
+	return schemaList;
+}
+
+json PumpHouseDB::currentValuesJSON(){
+	json j;
+
+	timestamp::TimeStamp ts;
+
+	for (auto& [key, value] : _values) {
+	
+		auto lastpair = _values[key].back();
+	
+		time_t t = lastpair.first;
+	 
+		json entry;
+		entry[string(JSON_ARG_VALUE)] 		=   jsonForValue(key, lastpair.second);
+		entry[string(JSON_ARG_DISPLAYSTR)] =   displayStringForValue(key, lastpair.second);
+		entry[string(JSON_ARG_TIME)] 		=   t;
+ 		j[key] = entry;
+	}
+	
+	return j;
+
+ }
+	
+json PumpHouseDB::jsonForValue(string key, string value){
+	json j;
+
+	string suffix =  unitSuffixForKey(key);
+
+	switch(unitsForKey(key)){
+
+		case MILLIVOLTS:
+		case MILLIAMPS:
+		case MAH:
+		case VOLTS:
+		case AMPS:
+		case HERTZ:
+		case WATTS:
+		case DEKAWATTHOUR:
+		case PERMILLE:
+		case DEGREES_C:
+		{
+			double val = normalizedDoubleForValue(key, value);
+			j = val;
+		}
+			break;
+
+		case SECONDS:
+		case MINUTES:
+		{
+			int val  = intForValue(key, value);
+			j = val;
+		}
+			break;
+			
+ 		case VE_PRODUCT:
+		{
+			int val = intForValue(key, value);
+			j = val;
+		}
+			break;
+
+		default:
+			j = value;
+		break;
+	}
+	return j;
+}
 

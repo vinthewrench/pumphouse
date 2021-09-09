@@ -22,9 +22,12 @@
 #include <map>
 #include <vector>
 #include <string>
+#include "json.hpp"
 
 
  using namespace std;
+using namespace nlohmann;
+
 
 class PumpHouseDB {
 	
@@ -66,20 +69,51 @@ class PumpHouseDB {
  	} valueSchema_t;
 
 public:
+	
+	
+	constexpr static string_view JSON_ARG_NAME			= "name";
+ 	constexpr static string_view JSON_ARG_TRACKING		= "tracking";
+ 	constexpr static string_view JSON_ARG_UNITS			= "units";
+	constexpr static string_view JSON_ARG_SUFFIX			= "suffix";
+	constexpr static string_view JSON_ARG_VALUE			= "value";
+	constexpr static string_view JSON_ARG_TIME			= "time";
+	constexpr static string_view JSON_ARG_DISPLAYSTR		= "display";
+
  
 	PumpHouseDB();
   ~PumpHouseDB();
+	bool initValueInfoFromFile(string filePath);
 
-	void clearAll();
+	void clear();
 	
 	bool insertValue(string key, string value, time_t when = 0);
 	bool insertValues(map<string,string>  values, time_t when = 0);
 
-	bool initValueInfoFromFile(string filePath);
 
 	string displayStringForValue(string key, string value);
 	void dumpMap();
-	
+
+	// MARK: -  API Secrets
+	bool apiSecretCreate(string APIkey, string APISecret);
+	bool apiSecretDelete(string APIkey);
+	bool apiSecretSetSecret(string APIkey, string APISecret);
+	bool apiSecretGetSecret(string APIkey, string &APISecret);
+	bool apiSecretMustAuthenticate();
+
+	// MARK: -   SERVER PORTS
+	void  setAllowRemoteTelnet(bool remoteTelnet);
+	bool  getAllowRemoteTelnet();
+
+	void  setTelnetPort(int port);
+	int  	getTelnetPort();
+	void  setRESTPort(int port);
+	int  	getRESTPort();
+
+ 
+	json	schemaJSON();
+	json	currentValuesJSON();
+	json  jsonForValue(string key, string value);
+
 private:
 	
 	mutable std::mutex _mutex;

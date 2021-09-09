@@ -9,13 +9,32 @@ project(pumphouse)
 
 set(SOURCES
 	src/main.cpp
-	src/PumpHouseMgr.cpp
-	src/PumpHouseDB.cpp
-	src/SmartShunt.cpp
-	src/SigineerInverter.cpp
-	src/SerialStream.cpp
-	src/LogMgr.cpp
-	src/TimeStamp.cpp
+	src/ServerCommandsLineFunctions.cpp
+	src/ServerNouns.cpp
+	PumphouseMgr/PumpHouseMgr.cpp
+	PumphouseMgr/PumpHouseDB.cpp
+	PumphouseMgr/SmartShunt.cpp
+	PumphouseMgr/SigineerInverter.cpp
+	PumphouseMgr/SerialStream.cpp
+	PumphouseMgr/PumpHouseAPISecretMgr
+	Submodule/FooServer/src/RESTutils.cpp
+	Submodule/FooServer/src/ServerCmdQueue.cpp
+	Submodule/FooServer/src/TCPClientInfo.cpp
+	Submodule/FooServer/src/TCPServer.cpp
+	Submodule/FooServer/src/REST/http_parser.c
+	Submodule/FooServer/src/REST/REST_URL.cpp
+	Submodule/FooServer/src/REST/RESTServerConnection.cpp
+ 	Submodule/FooServer/src/REST/yuarel.c
+ 	Submodule/FooServer/src/Telnet/CmdLineBuffer.cpp
+ 	Submodule/FooServer/src/Telnet/CmdLineBuffer.cpp
+ 	Submodule/FooServer/src/Telnet/CmdLineHelp.cpp
+ 	Submodule/FooServer/src/Telnet/CmdLineMgr.cpp
+ 	Submodule/FooServer/src/Telnet/CmdLineRegistry.cpp
+ 	Submodule/FooServer/src/Telnet/TelnetServerConnection.cpp
+ 	Submodule/FooServer/src/Telnet/libtelnet.c
+ 	Submodule/FooServer/src/hash-library/sha256.cpp
+	Submodule/FooServer/src/TimeStamp.cpp
+	Submodule/FooServer/src/LogMgr.cpp
  	)
 
 add_executable(pumphouse ${SOURCES})
@@ -38,6 +57,12 @@ target_link_libraries(pumphouse PRIVATE Threads::Threads)
 target_include_directories(pumphouse
 	PRIVATE 
 	src
+	PumphouseMgr
+	Submodule/FooServer/src
+	Submodule/FooServer/src/hash-library 
+	Submodule/FooServer/src/REST
+	Submodule/FooServer/src/Telnet
+
 	)
 
 set(CMAKE_BINARY_DIR "bin")

@@ -13,6 +13,8 @@ const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.0 dev 1";
 PumpHouseMgr::PumpHouseMgr(){
 	// start the thread running
 	_running = true;
+	_state = STATE_INIT;
+	_startTime = time(NULL);
 	_thread = std::thread(&PumpHouseMgr::run, this);
 
 }
@@ -24,19 +26,67 @@ PumpHouseMgr::~PumpHouseMgr(){
 
 }
 
-void PumpHouseMgr::start( std::function<void(bool didSucceed, string error_text)> cb){
- 
-	LOGT_INFO("PumpHouseMgr %s START", PumpHouseMgr_Version);
- 
-	if(!_db.initValueInfoFromFile("")){
-		if(cb)
-			(cb)(false,string("Failed to load db schema."));
-		return;;
+long PumpHouseMgr::upTime(){
+	time_t now = time(NULL);
+
+	return now - _startTime;
+}
+
+
+string PumpHouseMgr::currentStateString(){
+	
+	string result;
+	
+	switch(_state){
+			
+		case STATE_INIT:
+			result = "Initializing";
+			break;
+			
+		case STATE_SETUP:
+			result = "Schema Loaded";
+			break;
+
+		case STATE_READY:
+			result = "Ready";
+			break;
+	
+		default:
+			result = "Unknown";
+			break;
+			
 	}
 	
-	startInverter();
-	startShunt();
- }
+	return result;
+}
+
+//void PumpHouseMgr::start( std::function<void(bool didSucceed, string error_text)> cb){
+//
+//	LOGT_INFO("PumpHouseMgr %s START", PumpHouseMgr_Version);
+//
+//	if(!_db.initValueInfoFromFile("")){
+//		if(cb)
+//			(cb)(false,string("Failed to load db schema."));
+//		return;;
+//	}
+//
+//	startInverter();
+//	startShunt();
+// }
+
+bool PumpHouseMgr::loadSetupFile(string filePath){
+	
+	bool success = false;
+	_db.clear();
+	success =  _db.initValueInfoFromFile(filePath);
+
+	if(success) {
+		_state = STATE_SETUP;
+	}
+ 
+	return success;
+}
+
 
 void PumpHouseMgr::startInverter( std::function<void(bool didSucceed, string error_text)> cb){
 	int  errnum = 0;
@@ -94,6 +144,8 @@ void PumpHouseMgr::run(){
 			
 			if(_smartshunt.isConnected() || _inverter.isConnected() ) {
 			
+				_state = STATE_READY;
+				
 				int max_sd = 0;
 				struct timeval timeout = {TIMEOUT_SEC, TIMEOUT_USEC};
 
