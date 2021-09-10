@@ -16,7 +16,9 @@ PumpHouseDB::PumpHouseDB(){
 	
 	_values.clear();
 	_schema.clear();
-	
+	_eTag = 0;
+	_etagMap.clear();
+ 
 	_schemaMap = {
 		{"Bool", BOOL},				// Bool ON/OFF
 		{"Int", INT},				// Int
@@ -40,7 +42,7 @@ PumpHouseDB::PumpHouseDB(){
  }
 
 PumpHouseDB::~PumpHouseDB(){
- 
+	
 }
 
 
@@ -56,19 +58,23 @@ bool PumpHouseDB::insertValues(map<string,string>  values, time_t when){
 		when = time(NULL);
 	
 	for (auto& [key, value] : values) {
-		if(insertValue(key, value, when)){
+		if(insertValue(key, value, when, _eTag )){
 			didUpdate = true;
 		}
 	}
+	
+	if(didUpdate)
+		_eTag++;
 	
 	return didUpdate;
 	
 };
 
-bool PumpHouseDB::insertValue(string key, string value, time_t when){
-	
+bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag){
+
+	std::lock_guard<std::mutex> lock(_mutex);
 	bool updated = false;
-	
+
 	if(when == 0)
 		when = time(NULL);
 	
@@ -87,21 +93,39 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when){
 		updated = true;
 	}
 	
-	///////// debug
 	if(updated){
-		string str =  displayStringForValue(key, value);
-		printf("%3lu %-10s : %-16s %s\n",
-				 _values[key].size(),
-				 key.c_str(),
-				 str.c_str(),
-				 schema.description.c_str()
-				 );
+		_etagMap[key] = eTag;
 	}
-	///////// debug
+	
+//	///////// debug
+//	if(updated){
+//		string str =  displayStringForValue(key, value);
+//		printf("%3lu %-10s : %-16s %s\n",
+//				 _values[key].size(),
+//				 key.c_str(),
+//				 str.c_str(),
+//				 schema.description.c_str()
+//				 );
+//	}
+//	///////// debug
 
 	return updated;
 }
 
+
+vector<string> PumpHouseDB::keysChangedSinceEtag( eTag_t tag){
+	vector<string> changeList;
+	changeList.clear();
+	
+	for (auto& [key, t] : _etagMap) {
+		
+		if(tag <= t){
+			changeList.push_back(key);
+		}
+	}
+
+	return changeList;
+}
 
 bool PumpHouseDB::valueShouldUpdate(string key, string value){
 	
@@ -506,14 +530,14 @@ void  PumpHouseDB::setTelnetPort(int port){
 }
 
 int  	PumpHouseDB::getTelnetPort(){
-	return 2020;
+	return 2021;
 }
 
 void  PumpHouseDB::setRESTPort(int port){
 }
 
 int PumpHouseDB::getRESTPort(){
-	return 8080;
+	return 8081;
 }
 
 // MARK: -   JSON REQUESTS
@@ -536,12 +560,21 @@ json PumpHouseDB::schemaJSON(){
 	return schemaList;
 }
 
-json PumpHouseDB::currentValuesJSON(){
+json PumpHouseDB::currentValuesJSON(eTag_t  eTag){
 	json j;
 
 	timestamp::TimeStamp ts;
 
 	for (auto& [key, value] : _values) {
+		
+		if(eTag != 0){
+			auto k = key;
+			vector<string> v =  keysChangedSinceEtag(eTag);
+			
+ 			bool found = std::any_of(v.begin(), v.end(),
+											 [k](std::string const& s) {return s==k;});
+			if(!found) continue;
+		}
 	
 		auto lastpair = _values[key].back();
 	

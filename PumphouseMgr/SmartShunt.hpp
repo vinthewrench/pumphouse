@@ -19,9 +19,11 @@
 
 #include <time.h>
 
+#include "PumpHouseDevice.h"
+
 using namespace std;
 
-class SmartShunt {
+class SmartShunt : public PumpHouseDevice{
 
 public:
  
@@ -42,20 +44,20 @@ public:
 
 	bool isConnected();
 
-	smartshunt_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
+	PumpHouseDevice::response_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
 	
 	void idle(); 	// called from loop
 	
 	int getFD() {return _stream.getFD();};
 	
+	device_state_t getDeviceState();
+	
 private:
 
 	void  dumpMap();
 	map<string,string> getValues() {return _resultMap;}
-	
-	
- 
-	smartshunt_result_t process_char( uint8_t ch);
+	 
+	PumpHouseDevice::response_result_t process_char( uint8_t ch);
 	SerialStream _stream;
 	 
 	map<string,vector<pair<time_t, string>>> _values;
@@ -63,15 +65,13 @@ private:
 	void processResults();
 
 	  typedef enum  {
-		  INS_UNKNOWN = 0,
+		  INS_INVALID = 0,
 		  INS_IDLE ,
 		  INS_RECORD_BEGIN,
 		  INS_RECORD_NAME,
 		  INS_RECORD_VALUE,
 		  INS_CHECKSUM,
-		  INS_INVALID,
-		
-	  }in_state_t;
+		  }in_state_t;
 	in_state_t 	_state;
 
 	

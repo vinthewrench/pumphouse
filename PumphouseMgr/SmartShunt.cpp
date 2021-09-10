@@ -12,7 +12,7 @@
 
 
 SmartShunt::SmartShunt(){
-	_state = INS_UNKNOWN;
+	_state = INS_INVALID;
 	_values.clear();
 }
 
@@ -35,7 +35,7 @@ bool SmartShunt::begin(const char * path, int *error){
 		_values.clear();
 
 	}else {
-		_state = INS_UNKNOWN;
+		_state = INS_INVALID;
 	}
 	
 	return status;
@@ -48,38 +48,36 @@ void SmartShunt::stop(){
 		_stream.stop();
 	}
 }
-
  
-
 bool SmartShunt::isConnected(){
 	return _stream.isOpen();
 }
 
  
-SmartShunt::smartshunt_result_t
+PumpHouseDevice::response_result_t
 		SmartShunt::rcvResponse(std::function<void(map<string,string>)> cb){
  
-	smartshunt_result_t result = NOTHING;
+	PumpHouseDevice::response_result_t result = PumpHouseDevice::NOTHING;
 
 	if(!_stream.isOpen()) {
-		return ERROR;
+		return PumpHouseDevice::ERROR;
 	}
  
 	while(_stream.available()) {
 		uint8_t ch = _stream.read();
 		result = process_char(ch);
 		
-		if(result == PROCESS_VALUES){
+		if(result == PumpHouseDevice::PROCESS_VALUES){
 			if(cb) (cb)(_resultMap);
  		}
 	}
 	
 done:
 	
-	if(result == CONTINUE)
+	if(result == PumpHouseDevice::CONTINUE)
 		return result;
 
-	if(result ==  INVALID){
+	if(result ==  PumpHouseDevice::INVALID){
 		uint8_t sav =  LogMgr::shared()->_logFlags;
 		START_VERBOSE;
 		LogMgr::shared()->logTimedStampString("SmartShunt INVALID: ");
@@ -95,12 +93,28 @@ void SmartShunt::idle() {
 	
 }
 
+PumpHouseDevice::device_state_t SmartShunt::getDeviceState(){
+	
+ 	device_state_t retval = DEVICE_STATE_UNKNOWN;
+	
+	if(!isConnected())
+		retval = DEVICE_STATE_DISCONNECTED;
+	
+	else if(_state == INS_INVALID)
+		retval = DEVICE_STATE_ERROR;
+	
+	else retval = DEVICE_STATE_CONNECTED;
+ 
+	return retval;
+}
+
+
 //MARK: - state machine
 
 
-SmartShunt::smartshunt_result_t SmartShunt::process_char( uint8_t ch){
+PumpHouseDevice::response_result_t SmartShunt::process_char( uint8_t ch){
 
-	smartshunt_result_t retval = CONTINUE;
+	PumpHouseDevice::response_result_t retval = PumpHouseDevice::CONTINUE;
 
 #if DEBUG_STREAM
  
@@ -174,7 +188,7 @@ SmartShunt::smartshunt_result_t SmartShunt::process_char( uint8_t ch){
 
 			if(_checkSum == 0){
 				// we have a set of good values
-				retval = PROCESS_VALUES;
+				retval = PumpHouseDevice::PROCESS_VALUES;
 			}
 		
 			_state = INS_IDLE;

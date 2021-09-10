@@ -34,7 +34,7 @@ bool SigineerInverter::begin(const char * path, int *error){
 		_lastQueryTime = {0,0};
 		
 	}else {
-		_state = INS_UNKNOWN;
+		_state = INS_INVALID;
 	}
 	
 	return status;
@@ -52,10 +52,10 @@ bool SigineerInverter::isConnected(){
 	return _stream.isOpen();
 }
  
-SigineerInverter::inverter_result_t
+PumpHouseDevice::response_result_t
 			SigineerInverter::rcvResponse(std::function<void(map<string,string>)> cb){
 
-	inverter_result_t result = NOTHING;
+	PumpHouseDevice::response_result_t result = NOTHING;
 
 	if(!_stream.isOpen()) {
 		return ERROR;
@@ -88,6 +88,21 @@ done:
 }
 
  
+PumpHouseDevice::device_state_t SigineerInverter::getDeviceState(){
+	
+	device_state_t retval = DEVICE_STATE_UNKNOWN;
+	
+	if(!isConnected())
+		retval = DEVICE_STATE_DISCONNECTED;
+	
+	else if(_state == INS_INVALID)
+		retval = DEVICE_STATE_ERROR;
+	
+	else retval = DEVICE_STATE_CONNECTED;
+ 
+	return retval;
+}
+
 
 void SigineerInverter::idle() {
 	
@@ -120,9 +135,9 @@ void SigineerInverter::idle() {
 //MARK: - state machine
 
 
-SigineerInverter::inverter_result_t SigineerInverter::process_char( uint8_t ch){
+PumpHouseDevice::response_result_t SigineerInverter::process_char( uint8_t ch){
 	
-	inverter_result_t retval = CONTINUE;
+	PumpHouseDevice::response_result_t retval = CONTINUE;
 
 #if DEBUG_STREAM
 

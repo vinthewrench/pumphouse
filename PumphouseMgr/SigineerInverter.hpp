@@ -15,6 +15,7 @@
 
 #include "SerialStream.hpp"
 #include <map>
+#include "PumpHouseDevice.h"
 
 using namespace std;
 
@@ -26,21 +27,12 @@ constexpr string_view INVERTER_OP_FREQ	 				= "I_FREQ";
 constexpr string_view INVERTER_BATTERY_V	 				= "I_BV";
 constexpr string_view INVERTER_BATTERY_TEMP 			= "I_BT";
 constexpr string_view INVERTER_UPS_STATUS 				= "I_STATUS";
+ 
 
-
-class SigineerInverter {
-
+class SigineerInverter : public PumpHouseDevice{
+ 
 public:
 
-
-	typedef enum {
-		INVALID = 0,
-		PROCESS_VALUES,
-		ERROR,
-		FAIL,
-		CONTINUE,
-		NOTHING,
-	}inverter_result_t;
 
 	SigineerInverter();
 	~SigineerInverter();
@@ -50,12 +42,13 @@ public:
 
 	bool isConnected();
  
-	inverter_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
+	response_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
 	
 	void idle(); 	// called from loop
 
 	int getFD() {return _stream.getFD();};
- 	
+	device_state_t getDeviceState();
+
 private:
 
 	typedef enum  {
@@ -72,7 +65,7 @@ private:
 
 	map<string,string> _resultMap;
 	  
-	inverter_result_t process_char( uint8_t ch);
+	PumpHouseDevice::response_result_t process_char( uint8_t ch);
 	SerialStream _stream;
 	
 	timeval			_lastQueryTime;

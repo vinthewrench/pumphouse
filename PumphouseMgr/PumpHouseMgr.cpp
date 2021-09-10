@@ -13,7 +13,7 @@ const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.0 dev 1";
 PumpHouseMgr::PumpHouseMgr(){
 	// start the thread running
 	_running = true;
-	_state = STATE_INIT;
+	_state = PumpHouseDevice::DEVICE_STATE_UNKNOWN;
 	_startTime = time(NULL);
 	_thread = std::thread(&PumpHouseMgr::run, this);
 
@@ -32,33 +32,6 @@ long PumpHouseMgr::upTime(){
 	return now - _startTime;
 }
 
-
-string PumpHouseMgr::currentStateString(){
-	
-	string result;
-	
-	switch(_state){
-			
-		case STATE_INIT:
-			result = "Initializing";
-			break;
-			
-		case STATE_SETUP:
-			result = "Schema Loaded";
-			break;
-
-		case STATE_READY:
-			result = "Ready";
-			break;
-	
-		default:
-			result = "Unknown";
-			break;
-			
-	}
-	
-	return result;
-}
 
 //void PumpHouseMgr::start( std::function<void(bool didSucceed, string error_text)> cb){
 //
@@ -81,7 +54,7 @@ bool PumpHouseMgr::loadSetupFile(string filePath){
 	success =  _db.initValueInfoFromFile(filePath);
 
 	if(success) {
-		_state = STATE_SETUP;
+		_state = PumpHouseDevice::DEVICE_STATE_DISCONNECTED;
 	}
  
 	return success;
@@ -133,6 +106,28 @@ void PumpHouseMgr::stopInverter(){
 	 _smartshunt.stop();
  }
  
+PumpHouseDevice::device_state_t PumpHouseMgr::shuntState(){
+	return _smartshunt.getDeviceState();
+}
+
+PumpHouseDevice::device_state_t PumpHouseMgr::inverterState(){
+	return _inverter.getDeviceState();
+
+}
+ 
+string PumpHouseMgr::deviceStateString(PumpHouseDevice::device_state_t st) {
+	switch( st){
+		case PumpHouseDevice::DEVICE_STATE_UNKNOWN:
+			return "Unknown";
+		case PumpHouseDevice::DEVICE_STATE_DISCONNECTED:
+			return "Disconnected";
+		case PumpHouseDevice::DEVICE_STATE_CONNECTED:
+			return "Connected";
+		case PumpHouseDevice::DEVICE_STATE_ERROR:
+			return "Error";
+	}
+};
+
 void PumpHouseMgr::run(){
 	
 	#define TIMEOUT_SEC 3		//Timeout parameter for select() - in seconds
@@ -144,7 +139,7 @@ void PumpHouseMgr::run(){
 			
 			if(_smartshunt.isConnected() || _inverter.isConnected() ) {
 			
-				_state = STATE_READY;
+				_state = PumpHouseDevice::DEVICE_STATE_CONNECTED;
 				
 				int max_sd = 0;
 				struct timeval timeout = {TIMEOUT_SEC, TIMEOUT_USEC};

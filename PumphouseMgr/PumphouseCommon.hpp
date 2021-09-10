@@ -1,14 +1,15 @@
 //
-//  PumpHouseException.h
+//  PumphouseCommon.h
 //  pumphouse
 //
-//  Created by Vincent Moscaritolo on 9/7/21.
+//  Created by Vincent Moscaritolo on 9/10/21.
 //
 
-#ifndef PumpHouseException_h
-#define PumpHouseException_h
+#ifndef PumphouseCommon_h
+#define PumphouseCommon_h
 
 #include <stdexcept>
+ 
 
 class PumpHouseException: virtual public std::runtime_error {
 	 
@@ -44,4 +45,4 @@ public:
 };
  
 
-#endif /* PumpHouseException_h */
+#endif /* PumphouseCommon_h */

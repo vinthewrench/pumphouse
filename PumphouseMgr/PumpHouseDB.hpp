@@ -19,14 +19,17 @@
 #include <set>
 #include <vector>
 #include <tuple>
+#include<functional>
 #include <map>
-#include <vector>
 #include <string>
 #include "json.hpp"
 
+#include "PumphouseCommon.hpp"
 
- using namespace std;
+using namespace std;
 using namespace nlohmann;
+
+typedef  unsigned long eTag_t;
 
 
 class PumpHouseDB {
@@ -86,9 +89,10 @@ public:
 
 	void clear();
 	
-	bool insertValue(string key, string value, time_t when = 0);
+	bool insertValue(string key, string value, time_t when,  eTag_t eTag);
 	bool insertValues(map<string,string>  values, time_t when = 0);
 
+	vector<string> keysChangedSinceEtag( eTag_t eTag);
 
 	string displayStringForValue(string key, string value);
 	void dumpMap();
@@ -109,10 +113,11 @@ public:
 	void  setRESTPort(int port);
 	int  	getRESTPort();
 
- 
 	json	schemaJSON();
-	json	currentValuesJSON();
+	json	currentValuesJSON(eTag_t  eTag = 0);
 	json  jsonForValue(string key, string value);
+	eTag_t lastEtag() { return  _eTag;};
+	
 
 private:
 	
@@ -131,7 +136,9 @@ private:
  
 	map<string,valueSchemaUnits_t>  _schemaMap;
 	map<string, valueSchema_t>	_schema;
-	
+	map<string, eTag_t> 			_etagMap;
+	eTag_t							_eTag;		// last change tag
+
 };
 
 #endif /* PumpHouseDB_hpp */
