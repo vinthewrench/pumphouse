@@ -396,12 +396,10 @@ static bool DATECmdHandler( stringvector line,
 		std::ostringstream oss;
 
 		string str;
-		long 	uptime;
+		long 	uptime = 0;
  
 		ServerCmdArgValidator v1;
 
-		v1.getLongIntFromJSON("uptime", reply, uptime);
-	
 		if(v1.getStringFromJSON(JSON_ARG_DATE, reply, str)){
 			using namespace timestamp;
 			
@@ -411,7 +409,7 @@ static bool DATECmdHandler( stringvector line,
 			oss << "\n\r";
 		}
 		
-		if(uptime){
+		if(	v1.getLongIntFromJSON("uptime", reply, uptime)){
 			char timeStr[80] = {0};
 			tm tm;
 			breakDuration(uptime, tm);

@@ -41,6 +41,8 @@ int main(int argc, const char * argv[]) {
 
 	pumphouse.startInverter();
 	pumphouse.startShunt();
+	pumphouse.startTempSensor();
+	
 	
 	TCPServer telnet_server(cmdQueue);
 	telnet_server.begin(telnetPort, true, [=](){

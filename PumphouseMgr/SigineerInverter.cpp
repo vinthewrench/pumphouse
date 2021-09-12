@@ -13,11 +13,11 @@
 SigineerInverter::SigineerInverter(){
 	_state = INS_UNKNOWN;
 	_lastQueryTime = {0,0};
-
+	_resultMap.clear();
 }
 
 SigineerInverter::~SigineerInverter(){
- 
+	stop();
 }
 
 
@@ -32,6 +32,7 @@ bool SigineerInverter::begin(const char * path, int *error){
 		_response.clear();
 		_queryDelay = 10;	// seconds
 		_lastQueryTime = {0,0};
+		_resultMap.clear();
 		
 	}else {
 		_state = INS_INVALID;

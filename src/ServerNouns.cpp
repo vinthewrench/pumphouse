@@ -42,7 +42,7 @@
 static bool getCPUTemp(double &tempOut) {
 	bool didSucceed = false;
 
-#if defined(__PIE__)
+//#if defined(__PIE__)
 	// return the CPU temp
 		{
 			try{
@@ -62,11 +62,11 @@ static bool getCPUTemp(double &tempOut) {
 			catch(std::ifstream::failure &err) {
 			}
 		}
-#else
+//#else
 //	tempOut = 38.459;
 //	didSucceed = true;
 
-#endif
+//#endif
 	
 	return didSucceed;
 }

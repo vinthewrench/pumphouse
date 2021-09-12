@@ -33,6 +33,8 @@ bool SerialStream::begin(const char * path){
 	return begin(path, error);
 }
 
+
+
 bool SerialStream::begin(const char * path, speed_t speed,  int * errorOut){
 	
 	struct termios tty;

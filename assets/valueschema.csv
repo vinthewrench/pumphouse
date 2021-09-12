@@ -54,3 +54,4 @@ VM,mV,3,Mid-point voltage of the battery bank
 VPV,mV,2,Panel voltage
 WARN,Int,2,Warning reason
 MON,Int,2,DC monitor mode
+#TEMP1,degC,3,Temp Sensor 1

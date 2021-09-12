@@ -18,7 +18,8 @@
 #include "PumpHouseDB.hpp"
 #include "SmartShunt.hpp"
 #include "SigineerInverter.hpp"
-
+#include "TempSensor.hpp"
+ 
 using namespace std;
  
 class PumpHouseMgr {
@@ -39,6 +40,11 @@ public:
 	void startShunt( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopShunt();
 	PumpHouseDevice::device_state_t shuntState();
+	
+	void startTempSensor( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
+	void stopTempSensor();
+	PumpHouseDevice::device_state_t tempSensorState();
+
 	
 	string deviceStateString(PumpHouseDevice::device_state_t st);
 
@@ -65,6 +71,7 @@ public:
 
 	SmartShunt			_smartshunt;
 	SigineerInverter		_inverter;
+	TempSensor			_tempSensor1;
 	
 	PumpHouseDB			_db;
 	

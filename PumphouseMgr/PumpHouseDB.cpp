@@ -283,7 +283,6 @@ double PumpHouseDB::normalizedDoubleForValue(string key, string value){
 				break;
 				
 			case DEKAWATTHOUR:
-			case DEGREES_C:
 				retVal = val / 100;
 				break;
 	
@@ -291,6 +290,7 @@ double PumpHouseDB::normalizedDoubleForValue(string key, string value){
 				retVal = val / 10;
 				break;
 
+			case DEGREES_C:
 			case WATTS:
 			case VOLTS:
 			case AMPS:
@@ -424,8 +424,8 @@ void PumpHouseDB::dumpMap(){
 			desc = _schema[key].description;
 		}
 		
-		printf("%3lu %-8s:%10s %s\n",
-				 count,
+		printf("%3d %-8s:%10s %s\n",
+				 (int)count,
 				 key.c_str(),
 				 lastpair.second.c_str(),
 				 desc.c_str()
@@ -472,12 +472,7 @@ bool PumpHouseDB::initValueInfoFromFile(string filePath){
 			string desc = v[3];
 			
 			if(_schemaMap.count(typ)){
-				valueSchema_t sch ;
-				sch.units =  _schemaMap[typ];
-				sch.description = desc;
-				sch.tracking = (valueTracking_t) std::stoi( track );
-				_schema[key] = sch;
-				
+				addSchema(key, _schemaMap[typ], desc, (valueTracking_t) std::stoi( track ));
 			}
 		}
 		
@@ -494,6 +489,15 @@ bool PumpHouseDB::initValueInfoFromFile(string filePath){
 	
 }
 
+void PumpHouseDB::addSchema(string key,  valueSchemaUnits_t units, string description, valueTracking_t tracking){
+	
+	valueSchema_t sc;
+	sc.units = units;
+	sc.description = description;
+	sc.tracking = tracking;
+	
+	_schema[key] = sc;
+}
 
 
 // MARK: -  API Secrets

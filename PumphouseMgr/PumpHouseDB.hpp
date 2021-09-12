@@ -34,6 +34,10 @@ typedef  unsigned long eTag_t;
 
 class PumpHouseDB {
 	
+
+
+public:
+	
 	typedef enum {
 		INVALID = 0,
 		BOOL,				// Bool ON/OFF
@@ -64,16 +68,15 @@ class PumpHouseDB {
 		TR_DONT_TRACK =  3 // use latest value, dont track
 	}valueTracking_t;
 	
-
- 	typedef struct {
-		string  					description;
-		valueSchemaUnits_t  	units;
-		valueTracking_t			tracking;
- 	} valueSchema_t;
+private:
+	
+	typedef struct {
+	  string  					description;
+	  valueSchemaUnits_t  		units;
+	  valueTracking_t			tracking;
+  } valueSchema_t;
 
 public:
-	
-	
 	constexpr static string_view JSON_ARG_NAME			= "name";
  	constexpr static string_view JSON_ARG_TRACKING		= "tracking";
  	constexpr static string_view JSON_ARG_UNITS			= "units";
@@ -91,6 +94,8 @@ public:
 	
 	bool insertValue(string key, string value, time_t when,  eTag_t eTag);
 	bool insertValues(map<string,string>  values, time_t when = 0);
+
+	void addSchema(string key,  valueSchemaUnits_t units, string description, valueTracking_t tracking);
 
 	vector<string> keysChangedSinceEtag( eTag_t eTag);
 
@@ -117,7 +122,6 @@ public:
 	json	currentValuesJSON(eTag_t  eTag = 0);
 	json  jsonForValue(string key, string value);
 	eTag_t lastEtag() { return  _eTag;};
-	
 
 private:
 	

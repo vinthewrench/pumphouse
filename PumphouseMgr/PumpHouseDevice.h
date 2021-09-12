@@ -33,7 +33,7 @@ public:
 		NOTHING,
 	}response_result_t;
 	
-	virtual bool begin(const char * path, int *error = NULL) = 0;
+//	virtual bool begin(const char * path, int *error = NULL) = 0;
 	virtual void stop() = 0;
 	virtual bool isConnected()  = 0;
 	virtual void idle() = 0; 	// called from loop

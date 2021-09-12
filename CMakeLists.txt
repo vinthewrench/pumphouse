@@ -1,7 +1,10 @@
 # export CC=/usr/local/clang_9.0.0/bin/clang
 # export CXX=/usr/local/clang_9.0.0/bin/clang++
-SET (CMAKE_C_COMPILER             "/usr/lib/llvm/10/bin/clang")
-SET (CMAKE_CXX_COMPILER           "/usr/lib/llvm/10/bin/clang++")
+#SET (CMAKE_C_COMPILER             "/usr/lib/llvm/10/bin/clang")
+#SET (CMAKE_CXX_COMPILER           "/usr/lib/llvm/10/bin/clang++")
+SET (CMAKE_C_COMPILER             "/usr/local/clang_12.0.1/bin/clang")
+SET (CMAKE_CXX_COMPILER            "/usr/local/clang_12.0.1/bin/clang++")
+
 
 cmake_minimum_required(VERSION 3.0)
 
@@ -16,7 +19,10 @@ set(SOURCES
 	PumphouseMgr/SmartShunt.cpp
 	PumphouseMgr/SigineerInverter.cpp
 	PumphouseMgr/SerialStream.cpp
-	PumphouseMgr/PumpHouseAPISecretMgr
+	PumphouseMgr/PumpHouseAPISecretMgr.cpp
+	PumphouseMgr/TempSensor.cpp
+	PumphouseMgr/I2C.cpp
+	PumphouseMgr/TMP102.cpp
 	Submodule/FooServer/src/RESTutils.cpp
 	Submodule/FooServer/src/ServerCmdQueue.cpp
 	Submodule/FooServer/src/TCPClientInfo.cpp
