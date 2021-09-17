@@ -145,6 +145,8 @@ static void Date_NounHandler(ServerCmdQueue* cmdQueue,
 }
 
 
+// MARK:  SCHEMA NOUN HANDLERS
+
 static void Schema_NounHandler(ServerCmdQueue* cmdQueue,
 										  REST_URL url,
 										  TCPClientInfo cInfo,
@@ -226,7 +228,208 @@ static void Schema_ValuesHandler(ServerCmdQueue* cmdQueue,
 	(completion) (reply, STATUS_OK);
 };
 
+// MARK:  PROPERTIES NOUN HANDLER
+
+static bool Properties_NounHandler_GET(ServerCmdQueue* cmdQueue,
+											  REST_URL url,
+											  TCPClientInfo cInfo,
+											  ServerCmdQueue::cmdCallback_t completion) {
+	using namespace rest;
+	json reply;
+
+	auto path = url.path();
+	string noun;
+	
+	if(path.size() > 0) {
+		noun = path.at(0);
+	}
+	
+	auto db = pumphouse.getDB();
+
+	// CHECK sub paths
+	map<string ,string> propList;
+	
+	if(path.size() == 1){
+		propList = db->getProperties();
+		
+	}else if (path.size() == 2){
+		
+		string propName = path.at(1);
+		string value;
+		
+		if(db->getProperty(propName, &value)){
+			propList[propName] = value;
+		}
+		else {
+			return false;
+		}
+	}
+	else {
+		return false;
+	}
  
+	json propEntries;
+
+	for(const auto& [key, value] : propList) {
+		propEntries[key] = value;
+	}
+
+	reply[ string(JSON_ARG_PROPERTIES) ] = propEntries;
+	
+	makeStatusJSON(reply,STATUS_OK);
+	(completion) (reply, STATUS_OK);
+	return true;
+}
+
+
+static bool Properties_NounHandler_PATCH(ServerCmdQueue* cmdQueue,
+											  REST_URL url,
+											  TCPClientInfo cInfo,
+											  ServerCmdQueue::cmdCallback_t completion) {
+	using namespace rest;
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	auto body 	= url.body();
+	
+	json reply;
+	
+	auto db = pumphouse.getDB();
+	string noun;
+	
+	if(path.size() > 0) {
+		noun = path.at(0);
+	}
+	
+	bool didUpdate = false;
+
+
+	for(auto it =  body.begin(); it != body.end(); ++it) {
+		string key = Utils::trim(it.key());
+
+		if(body[it.key()].is_string()){
+			string value = Utils::trim(it.value());
+			
+			if(db->setProperty(key, value)){
+				didUpdate = true;
+			}
+		}
+		else if(body[it.key()].is_number()){
+			string value =to_string(it.value());
+
+			if(db->setProperty(key, value)){
+				didUpdate = true;
+			}
+		}
+		else if(body[it.key()].is_boolean()){
+			string value =  it.value()?"1":"0";
+			
+			if(db->setProperty(key, value)){
+				didUpdate = true;
+			}
+			
+		} else if(body[it.key()].is_null()){
+			// delete property
+			if(db->removeProperty( key)){
+				didUpdate = true;
+			}
+		}
+	}
+	
+	makeStatusJSON(reply,STATUS_OK);
+	(completion) (reply, STATUS_OK);
+	return true;
+}
+
+
+static bool Properties_NounHandler_DELETE(ServerCmdQueue* cmdQueue,
+											  REST_URL url,
+											  TCPClientInfo cInfo,
+														ServerCmdQueue::cmdCallback_t completion) {
+	using namespace rest;
+	json reply;
+	
+	auto path = url.path();
+	string noun;
+	
+	if(path.size() > 0) {
+		noun = path.at(0);
+	}
+
+	auto db = pumphouse.getDB();
+
+	if (path.size() == 2){
+		string propName = path.at(1);
+		
+		if(!db->removeProperty(propName)){
+	 			return false;
+		}
+		
+	}
+	else {
+		return false;
+	}
+	
+	// CHECK sub paths
+	
+	makeStatusJSON(reply,STATUS_NO_CONTENT);
+	(completion) (reply, STATUS_NO_CONTENT);
+	return true;
+}
+
+
+
+
+static void Properties_NounHandler(ServerCmdQueue* cmdQueue,
+										  REST_URL url,
+										  TCPClientInfo cInfo,
+										  ServerCmdQueue::cmdCallback_t completion) {
+
+	using namespace rest;
+	json reply;
+	
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	string noun;
+	
+	bool isValidURL = false;
+	
+	if(path.size() > 0) {
+		noun = path.at(0);
+	}
+
+	switch(url.method()){
+		case HTTP_GET:
+ 			isValidURL = Properties_NounHandler_GET(cmdQueue,url,cInfo, completion);
+			break;
+			
+//		case HTTP_PUT:
+//			isValidURL = Properties_NounHandler_PUT(cmdQueue,url,cInfo, completion);
+//			break;
+
+		case HTTP_PATCH:
+ 			isValidURL = Properties_NounHandler_PATCH(cmdQueue,url,cInfo, completion);
+			break;
+
+//		case HTTP_POST:
+//			isValidURL = Properties_NounHandler_POST(cmdQueue,url,cInfo, completion);
+//			break;
+//
+		case HTTP_DELETE:
+			isValidURL = Properties_NounHandler_DELETE(cmdQueue,url,cInfo, completion);
+			break;
+  
+		default:
+			(completion) (reply, STATUS_INVALID_METHOD);
+			return;
+	}
+	
+	if(!isValidURL) {
+		(completion) (reply, STATUS_NOT_FOUND);
+	}
+};
+
 // MARK:  EVENTS NOUN HANDLERS
 
 static bool State_NounHandler_GET(ServerCmdQueue* cmdQueue,
@@ -446,6 +649,190 @@ static void State_NounHandler(ServerCmdQueue* cmdQueue,
 };
 
 
+// MARK: LOG - NOUN HANDLER
+
+static bool Log_NounHandler_GET(ServerCmdQueue* cmdQueue,
+											  REST_URL url,
+											  TCPClientInfo cInfo,
+											  ServerCmdQueue::cmdCallback_t completion) {
+	using namespace rest;
+
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	json reply;
+	auto db = pumphouse.getDB();
+
+	string subpath;
+	
+	if(path.size() > 1){
+		subpath =   path.at(1);
+	}
+
+	// GET /log
+	if(subpath == SUBPATH_STATE) {
+  
+		reply[string(JSON_ARG_LOGFLAGS)] =  LogMgr::shared()->_logFlags;
+ 
+		makeStatusJSON(reply,STATUS_OK);
+		(completion) (reply, STATUS_OK);
+		return true;
+	}
+	else if(subpath == SUBPATH_FILE) {
+		
+		string path;
+		
+		db->getProperty(string(PumpHouseDB::PROP_LOG_FILE), &path);
+		reply[string(JSON_ARG_FILEPATH)] =  path;
+	
+		makeStatusJSON(reply,STATUS_OK);
+		(completion) (reply, STATUS_OK);
+		return true;
+	}
+		
+	  return false;
+}
+
+static bool Log_NounHandler_PUT(ServerCmdQueue* cmdQueue,
+												REST_URL url,
+												TCPClientInfo cInfo,
+										  ServerCmdQueue::cmdCallback_t completion) {
+	
+	using namespace rest;
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	
+	ServerCmdArgValidator v1;
+ 
+	json reply;
+	string subpath;
+
+	auto db = pumphouse.getDB();
+
+	if(path.size() > 1){
+		subpath =   path.at(1);
+	}
+
+	if(subpath == SUBPATH_STATE) {
+		uint8_t logFlags;
+	
+		if(v1.getByteFromJSON(JSON_ARG_LOGFLAGS, url.body(), logFlags)){
+			
+			LogMgr::shared()->_logFlags = logFlags;
+			db->setProperty(string(PumpHouseDB::PROP_LOG_FLAGS),  to_hex <unsigned char>(logFlags,true));
+
+			makeStatusJSON(reply,STATUS_OK);
+			(completion) (reply, STATUS_OK);
+			return true;
+
+		}
+	}
+	else if(subpath == SUBPATH_FILE) {
+		
+		string path;
+		
+		if(v1.getStringFromJSON(JSON_ARG_FILEPATH, url.body(), path)){
+			// set the log file
+			
+			bool success = LogMgr::shared()->setLogFilePath(path);
+			if(success){
+				db->setProperty(string(PumpHouseDB::PROP_LOG_FILE), path);
+ 
+				makeStatusJSON(reply,STATUS_OK);
+				(completion) (reply, STATUS_OK);
+			}
+			else {
+				string lastError =  string("Error: ") + to_string(errno);
+				string lastErrorString = string(::strerror(errno));
+				
+				makeStatusJSON(reply, STATUS_BAD_REQUEST, lastError, lastErrorString);;
+				(completion) (reply, STATUS_BAD_REQUEST);
+			}
+			return true;
+		}
+	}
+ 
+	return false;
+}
+
+static bool Log_NounHandler_PATCH(ServerCmdQueue* cmdQueue,
+												REST_URL url,
+												TCPClientInfo cInfo,
+										  ServerCmdQueue::cmdCallback_t completion) {
+	
+	using namespace rest;
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	
+	ServerCmdArgValidator v1;
+ 
+	json reply;
+ 
+	string str;
+	
+	if(v1.getStringFromJSON(JSON_ARG_MESSAGE, url.body(), str)){
+		
+		LogMgr::shared()->logTimedStampString(str);
+		makeStatusJSON(reply,STATUS_OK);
+		(completion) (reply, STATUS_OK);
+		return true;
+	}
+
+	return false;
+}
+
+static void Log_NounHandler(ServerCmdQueue* cmdQueue,
+										 REST_URL url,  // entire request
+										 TCPClientInfo cInfo,
+										 ServerCmdQueue::cmdCallback_t completion) {
+	using namespace rest;
+	json reply;
+	
+	auto path = url.path();
+	auto queries = url.queries();
+	auto headers = url.headers();
+	string noun;
+	
+	bool isValidURL = false;
+	
+	if(path.size() > 0) {
+		noun = path.at(0);
+	}
+	
+	switch(url.method()){
+		case HTTP_GET:
+			isValidURL = Log_NounHandler_GET(cmdQueue,url,cInfo, completion);
+			break;
+
+		case HTTP_PUT:
+			isValidURL = Log_NounHandler_PUT(cmdQueue,url,cInfo, completion);
+			break;
+
+		case HTTP_PATCH:
+			isValidURL = Log_NounHandler_PATCH(cmdQueue,url,cInfo, completion);
+			break;
+
+//		case HTTP_POST:
+//			isValidURL = Log_NounHandler_POST(cmdQueue,url,cInfo, completion);
+//			break;
+//
+//		case HTTP_DELETE:
+//			isValidURL = Log_NounHandler_DELETE(cmdQueue,url,cInfo, completion);
+//			break;
+  
+		default:
+			(completion) (reply, STATUS_INVALID_METHOD);
+			return;
+	}
+	
+	if(!isValidURL) {
+		(completion) (reply, STATUS_NOT_FOUND);
+	}
+}
+
+
 // MARK: -  register server nouns
 
 void registerServerNouns() {
@@ -457,6 +844,10 @@ void registerServerNouns() {
 	cmdQueue->registerNoun(NOUN_STATE, 	State_NounHandler);
 	cmdQueue->registerNoun(NOUN_SCHEMA, 	Schema_NounHandler);
 	cmdQueue->registerNoun(NOUN_VALUES, 	Schema_ValuesHandler);
+	cmdQueue->registerNoun(NOUN_PROPERTIES, Properties_NounHandler);
+	cmdQueue->registerNoun(NOUN_LOG, 		Log_NounHandler);
+
+	
 
 }
 

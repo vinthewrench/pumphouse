@@ -21,11 +21,11 @@ SigineerInverter::~SigineerInverter(){
 }
 
 
-bool SigineerInverter::begin(const char * path, int *error){
+bool SigineerInverter::begin(string path, int *error){
 	
 	bool status = false;
 	
-	status = _stream.begin(path, B2400, error);
+	status = _stream.begin(path.c_str(), B2400, error);
  
 	if(status){
 		_state = INS_IDLE;

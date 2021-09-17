@@ -65,9 +65,7 @@ public:
 	bool begin(const char * path);
 	bool begin(const char * path, speed_t speed = B19200,  int *error = NULL);
 	void stop();
-	
-	int sleep(struct timeval timeout);
- 
+	 
 	bool isOpen();
 
 	 ssize_t write(const uint8_t*, size_t);

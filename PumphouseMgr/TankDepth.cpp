@@ -1,36 +1,44 @@
 //
-//  TempSensor.cpp
+//  TankDepth.cpp
 //  pumphouse
 //
-//  Created by Vincent Moscaritolo on 9/11/21.
+//  Created by Vincent Moscaritolo on 9/12/21.
 //
 
-#include "TempSensor.hpp"
+#include "TankDepth.hpp"
 #include "LogMgr.hpp"
 
-TempSensor::TempSensor(){
+TankDepth::TankDepth( PumpHouseDB *db){
+	_db = db;
 	_state = INS_UNKNOWN;
 	_lastQueryTime = {0,0};
 	_resultMap.clear();
+	
+	// default numbers
+	_valFull =  15000;
+	_valEmpty =  7667;
+ 
 }
 
-TempSensor::~TempSensor(){
+TankDepth::~TankDepth(){
 	stop();
 }
 
 
  
-bool TempSensor::begin(int deviceAddress, string resultKey, int *error){
+bool TankDepth::begin(int deviceAddress, string resultKey, string rawResultKey,  int *error){
 	bool status = false;
 
+	
 	status = _sensor.begin(deviceAddress, error);
 	
 	if(status){
 		_state = INS_IDLE;
-		_queryDelay = 2;	// seconds
+		_queryDelay = 5;	// seconds
 		_lastQueryTime = {0,0};
 		_resultMap.clear();
 		_resultKey = resultKey;
+		_rawResultKey = rawResultKey;
 
 	}else {
 		_state = INS_INVALID;
@@ -40,19 +48,19 @@ bool TempSensor::begin(int deviceAddress, string resultKey, int *error){
 	return status;
 }
 
-void TempSensor::stop(){
+void TankDepth::stop(){
 	if(_sensor.isOpen()){
 		_sensor.stop();
 	}
 
 }
 
-bool TempSensor::isConnected(){
+bool TankDepth::isConnected(){
 	return _sensor.isOpen();
 }
  
 PumpHouseDevice::response_result_t
-TempSensor::rcvResponse(std::function<void(map<string,string>)> cb){
+TankDepth::rcvResponse(std::function<void(map<string,string>)> cb){
 
 	PumpHouseDevice::response_result_t result = NOTHING;
 	
@@ -75,7 +83,7 @@ done:
 	if(result ==  INVALID){
 		uint8_t sav =  LogMgr::shared()->_logFlags;
 		START_VERBOSE;
-		LogMgr::shared()->logTimedStampString("TempSensor INVALID: ");
+		LogMgr::shared()->logTimedStampString("TankDepth INVALID: ");
 		LogMgr::shared()->_logFlags = sav;
 		return result;
 	}
@@ -85,7 +93,7 @@ done:
 
  
 
-PumpHouseDevice::device_state_t TempSensor::getDeviceState(){
+PumpHouseDevice::device_state_t TankDepth::getDeviceState(){
   
   device_state_t retval = DEVICE_STATE_UNKNOWN;
   
@@ -100,8 +108,7 @@ PumpHouseDevice::device_state_t TempSensor::getDeviceState(){
   return retval;
 }
 
-void TempSensor::idle(){
-	
+void TankDepth::idle(){
 	
 	if(isConnected() && (_state == INS_IDLE)){
 		
@@ -122,10 +129,26 @@ void TempSensor::idle(){
 		
 		if(shouldQuery){
 			
-			float tempC;
+			uint16_t rawData = 0;
+	
+			_db->getUint16Property(string(PumpHouseDB::PROP_TANK_FULL),&_valFull);
+			_db->getUint16Property(string(PumpHouseDB::PROP_TANK_EMPTY),&_valEmpty);
 			
-			if( _sensor.readTempC(tempC)){
-				_resultMap[_resultKey] =  to_string(tempC);
+			auto gain = MCP3427::GAIN_1X;
+			auto adcBits = MCP3427::ADC_16_BITS;
+			
+			if(_sensor.analogRead(	rawData, 0, gain, adcBits))
+			{
+				if(!_rawResultKey.empty()){
+					_resultMap[_rawResultKey] =  to_string(rawData);
+				}
+				
+				// max out result
+				if(rawData < _valEmpty) rawData = _valEmpty;
+				else if (rawData > _valFull) rawData = _valFull;
+				float depth = (float((rawData - _valEmpty)) /float(( _valFull - _valEmpty))) * 100.0;
+ 			
+	 			_resultMap[_resultKey] =  to_string(depth);
 				_state = INS_RESPONSE;
 				gettimeofday(&_lastQueryTime, NULL);
 				

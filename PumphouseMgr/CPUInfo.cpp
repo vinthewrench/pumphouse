@@ -1,71 +1,51 @@
 //
-//  TempSensor.cpp
+//  CPUInfo.cpp
 //  pumphouse
 //
-//  Created by Vincent Moscaritolo on 9/11/21.
+//  Created by Vincent Moscaritolo on 9/14/21.
 //
 
-#include "TempSensor.hpp"
-#include "LogMgr.hpp"
+#include "CPUInfo.hpp"
+ #include "LogMgr.hpp"
 
-TempSensor::TempSensor(){
+CPUInfo::CPUInfo(){
 	_state = INS_UNKNOWN;
 	_lastQueryTime = {0,0};
 	_resultMap.clear();
 }
 
-TempSensor::~TempSensor(){
+CPUInfo::~CPUInfo(){
 	stop();
 }
 
-
  
-bool TempSensor::begin(int deviceAddress, string resultKey, int *error){
-	bool status = false;
-
-	status = _sensor.begin(deviceAddress, error);
-	
-	if(status){
-		_state = INS_IDLE;
-		_queryDelay = 2;	// seconds
-		_lastQueryTime = {0,0};
-		_resultMap.clear();
-		_resultKey = resultKey;
-
-	}else {
-		_state = INS_INVALID;
-	}
-	
-
-	return status;
+bool CPUInfo::begin(int *error){
+ 
+	_state = INS_IDLE;
+	_queryDelay = 2;	// seconds
+	_lastQueryTime = {0,0};
+ 
+	return true;
 }
 
-void TempSensor::stop(){
-	if(_sensor.isOpen()){
-		_sensor.stop();
-	}
-
+void CPUInfo::stop(){
+	_state = INS_INVALID;
 }
 
-bool TempSensor::isConnected(){
-	return _sensor.isOpen();
+bool CPUInfo::isConnected(){
+	return _state == INS_IDLE  ||  _state == INS_RESPONSE;
 }
  
 PumpHouseDevice::response_result_t
-TempSensor::rcvResponse(std::function<void(map<string,string>)> cb){
+CPUInfo::rcvResponse(std::function<void(map<string,string>)> cb){
 
 	PumpHouseDevice::response_result_t result = NOTHING;
-	
-	if(!_sensor.isOpen()) {
-		return ERROR;
-	}
 	
 	if(_state == INS_RESPONSE){
 		result = PROCESS_VALUES;
 		if(cb) (cb)(_resultMap);
 		_state = INS_IDLE;
 	}
-	
 	
 done:
 	
@@ -75,17 +55,16 @@ done:
 	if(result ==  INVALID){
 		uint8_t sav =  LogMgr::shared()->_logFlags;
 		START_VERBOSE;
-		LogMgr::shared()->logTimedStampString("TempSensor INVALID: ");
+		LogMgr::shared()->logTimedStampString("CPUInfo INVALID: ");
 		LogMgr::shared()->_logFlags = sav;
 		return result;
 	}
-	
 	return result;
 }
 
  
 
-PumpHouseDevice::device_state_t TempSensor::getDeviceState(){
+PumpHouseDevice::device_state_t CPUInfo::getDeviceState(){
   
   device_state_t retval = DEVICE_STATE_UNKNOWN;
   
@@ -100,10 +79,10 @@ PumpHouseDevice::device_state_t TempSensor::getDeviceState(){
   return retval;
 }
 
-void TempSensor::idle(){
+void CPUInfo::idle(){
 	
 	
-	if(isConnected() && (_state == INS_IDLE)){
+	if(_state == INS_IDLE){
 		
 		bool shouldQuery = false;
 		
@@ -122,19 +101,40 @@ void TempSensor::idle(){
 		
 		if(shouldQuery){
 			
-			float tempC;
+			double tempC;
 			
-			if( _sensor.readTempC(tempC)){
-				_resultMap[_resultKey] =  to_string(tempC);
+			if(getCPUTemp(&tempC)){
+				_resultMap[string(CPU_INFO_TEMP)] =  to_string(tempC);
 				_state = INS_RESPONSE;
 				gettimeofday(&_lastQueryTime, NULL);
 				
 			}
-			else
-			{
-//				_state = INS_INVALID;
-			}
-			
 		}
 	}
+}
+
+bool CPUInfo::getCPUTemp(double * tempOut) {
+	bool didSucceed = false;
+	try{
+		std::ifstream   ifs;
+		ifs.open("/sys/class/thermal/thermal_zone0/temp", ios::in);
+		if( ifs.is_open()){
+			
+			if(tempOut){
+				string val;
+				ifs >> val;
+				ifs.close();
+				double temp = std::stod(val);
+				temp = temp /1000.0;
+				*tempOut = temp;
+			}
+			didSucceed = true;
+		}
+		
+	}
+	catch(std::ifstream::failure &err) {
+	}
+	
+	
+	return didSucceed;
 }

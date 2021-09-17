@@ -1,0 +1,5 @@
+prop-tank-empty,7000
+prop-tank-full,15000
+trigger-TANK_RAW,20
+log-filepath, logfile.txt
+log-flags, 0x0f

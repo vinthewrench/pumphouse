@@ -18,12 +18,14 @@ PumpHouseDB::PumpHouseDB(){
 	_schema.clear();
 	_eTag = 0;
 	_etagMap.clear();
+	_properties.clear();
  
 	_schemaMap = {
 		{"Bool", BOOL},				// Bool ON/OFF
 		{"Int", INT},				// Int
 		{"mAh", MAH},				// mAh milliAmp hours
 		{"‰", PERMILLE} ,			// (per thousand) sign ‰
+		{"%", PERCENT} ,			// (per hundred) sign PERCENT
 		{".01kWh", DEKAWATTHOUR},		// .01kWh
 		{"W", WATTS}, 				// W
 		{"mA",MILLIAMPS},			// mA
@@ -72,7 +74,6 @@ bool PumpHouseDB::insertValues(map<string,string>  values, time_t when){
 
 bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag){
 
-	std::lock_guard<std::mutex> lock(_mutex);
 	bool updated = false;
 
 	if(when == 0)
@@ -80,11 +81,11 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag
 	
 	valueSchema_t schema = schemaForKey(key);
 	if(schema.tracking == TR_IGNORE){
-		updated = false;
+		return false;
 	}
 	else if(schema.tracking == TR_DONT_TRACK)
 	{
-		updated = valueShouldUpdate(key,value);
+//		updated = valueShouldUpdate(key,value);
 	// only keep last value
 		_values[key] = {make_pair(when, value)};
  	}
@@ -96,18 +97,8 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag
 	if(updated){
 		_etagMap[key] = eTag;
 	}
-	
-//	///////// debug
-//	if(updated){
-//		string str =  displayStringForValue(key, value);
-//		printf("%3lu %-10s : %-16s %s\n",
-//				 _values[key].size(),
-//				 key.c_str(),
-//				 str.c_str(),
-//				 schema.description.c_str()
-//				 );
-//	}
-//	///////// debug
+
+//		printf("%s %s: %s \n", updated?"T":"F",  key.c_str(), value.c_str());
 
 	return updated;
 }
@@ -130,6 +121,7 @@ vector<string> PumpHouseDB::keysChangedSinceEtag( eTag_t tag){
 bool PumpHouseDB::valueShouldUpdate(string key, string value){
 	
 	bool shouldInsert = true;
+	double triggerDiff = 0;
 	
 	valueSchema_t schema = schemaForKey(key);
 	if(schema.tracking == TR_IGNORE)
@@ -156,36 +148,52 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 			double diff = abs(oldval-newVal);
 			
 			switch (vs.units) {
+				case DEGREES_C:
+					triggerDiff = 1.0;
+					break;
+	
 				case MILLIVOLTS:
 				case MILLIAMPS:
 				case MAH:
-					if(diff < 500)
-						shouldInsert = false;
-					//				printf(" %f -  %f = %f %s\n", oldval, newVal, diff, shouldInsert?"T":"F" );
-					break;
-			
+ 					triggerDiff = 500;
+ 					break;			
 	
 				case WATTS:
 				case VOLTS:
-					if(diff < 5)
-						shouldInsert = false;
-					//		 				printf(" %f -  %f = %f %s\n", oldval, newVal, diff, shouldInsert?"T":"F" );
+					triggerDiff = 5;
 					break;
 					
 				case PERMILLE:
-					if(diff < 10)
-						shouldInsert = false;
+					triggerDiff = 10;
+					break;
+	
+				case PERCENT:
+					triggerDiff = 1;
 					break;
 					
 				case HERTZ:
-					if(diff < 10)
-						shouldInsert = false;
-					//				printf(" %f -  %f = %f %s\n", oldval, newVal, diff, shouldInsert?"T":"F" );
+					triggerDiff = 10;
+					break;
 					
 				default:
+					triggerDiff = 0;
 					break;
 			}
 			
+			// override trigger
+			string str;
+			if(getProperty( string(PumpHouseDB::PROP_TRIGGER_PREFIX)+key, &str)){
+				double trigVal = strtod(str.c_str(), &p);
+				if(*p == 0){
+					triggerDiff  = trigVal;
+				}
+			}
+ 				
+			shouldInsert = diff > triggerDiff;
+			
+//			if(key != "I" && key != "V")
+// 				printf("%s %8s %5.3f -  %5.3f = %f.3 > %f.3\n", shouldInsert?"T":"f", key.c_str(),
+//					 oldval, newVal, diff , triggerDiff );
 		}
 	}
 	
@@ -237,9 +245,10 @@ string   PumpHouseDB::unitSuffixForKey(string key){
 			break;
  
 		case PERMILLE:
+		case PERCENT:
 			suffix = "%";
 			break;
-
+			
 		case WATTS:
 			suffix = "W";
 			break;
@@ -290,6 +299,7 @@ double PumpHouseDB::normalizedDoubleForValue(string key, string value){
 				retVal = val / 10;
 				break;
 
+			case PERCENT:
 			case DEGREES_C:
 			case WATTS:
 			case VOLTS:
@@ -362,11 +372,22 @@ string PumpHouseDB::displayStringForValue(string key, string value){
 		case WATTS:
 		case DEKAWATTHOUR:
 		case PERMILLE:
-		case DEGREES_C:
+		case PERCENT:
 		{
 			double val = normalizedDoubleForValue(key, value);
 			char buffer[12];
 			sprintf(buffer, "%3.2f%s", val, suffix.c_str());
+			retVal = string(buffer);
+		}
+			break;
+
+		case DEGREES_C:
+		{
+			double val = normalizedDoubleForValue(key, value);
+			double tempF =  val * 9.0 / 5.0 + 32.0;
+			
+			char buffer[12];
+			sprintf(buffer, "%3.2f%s", tempF, "°F");
 			retVal = string(buffer);
 		}
 			break;
@@ -433,9 +454,10 @@ void PumpHouseDB::dumpMap(){
 	}
 }
 
+// MARK: -  SCHEMA
 
- 
-bool PumpHouseDB::initValueInfoFromFile(string filePath){
+
+bool PumpHouseDB::initSchemaFromFile(string filePath){
 	bool 				statusOk = false;
 	
 	std::ifstream	ifs;
@@ -489,6 +511,7 @@ bool PumpHouseDB::initValueInfoFromFile(string filePath){
 	
 }
 
+
 void PumpHouseDB::addSchema(string key,  valueSchemaUnits_t units, string description, valueTracking_t tracking){
 	
 	valueSchema_t sc;
@@ -499,28 +522,205 @@ void PumpHouseDB::addSchema(string key,  valueSchemaUnits_t units, string descri
 	_schema[key] = sc;
 }
 
+// MARK: - properties
+bool PumpHouseDB::setProperty(string key, string value){
+	_properties[key] = value;
+	savePropertiesToFile();
+	return true;
+}
+
+bool PumpHouseDB::removeProperty(string key){
+	
+	if(_properties.count(key)){
+		_properties.erase(key);
+		savePropertiesToFile();
+		return true;
+	}
+	return false;
+}
+
+bool PumpHouseDB::setPropertyIfNone(string key, string value){
+	
+	if(_properties.count(key) == 0){
+		_properties[key] = value;
+		savePropertiesToFile();
+		return true;
+	}
+	return false;
+}
+
+map<string ,string> PumpHouseDB::getProperties(){
+	
+	return _properties;
+}
+
+bool PumpHouseDB::getProperty(string key, string *value){
+	
+	if(_properties.count(key)){
+		if(value)
+			*value = _properties[key];
+		return true;
+	}
+	return false;
+}
+
+bool  PumpHouseDB::getUint16Property(string key, uint16_t * valOut){
+	
+	string str;
+	if(getProperty(string(key), &str)){
+		char* p;
+		long val = strtoul(str.c_str(), &p, 0);
+		if(*p == 0 && val <= UINT16_MAX){
+			if(valOut)
+				*valOut = (uint16_t) val;
+			return true;
+		}
+	}
+	return false;
+}
+
+ 
+bool PumpHouseDB::restorePropertiesFromFile(string filePath){
+
+	std::ifstream	ifs;
+	bool 				statusOk = false;
+
+	if(filePath.empty())
+		filePath = _propertyFilePath;
+
+	if(filePath.empty())
+		filePath = defaultPropertyFilePath();
+	
+	try{
+		string line;
+		std::lock_guard<std::mutex> lock(_mutex);
+	
+		// open the file
+		ifs.open(filePath, ios::in);
+		if(!ifs.is_open()) return false;
+	
+		while ( std::getline(ifs, line) ) {
+	
+			// split the line looking for a token: and rest and ignore comments
+			line = Utils::trimStart(line);
+			if(line.size() == 0) continue;
+			if(line[0] == '#')  continue;
+			size_t pos = line.find(",");
+			if(pos ==  string::npos) continue;
+			
+			string  key = line.substr(0, pos);
+			string  value = line.substr(pos+1);
+			value = Utils::trim(string(value));
+			
+			_properties[key] = value;
+		}
+		
+		statusOk = true;
+		ifs.close();
+		
+		// if we were sucessful, then save the filPath
+		_propertyFilePath	= filePath;
+	}
+	catch(std::ifstream::failure &err) {
+		
+		LOG_INFO("restorePropertiesFromFile:FAIL: %s\n", err.what());
+		statusOk = false;
+	}
+	
+	return statusOk;
+}
+
+bool PumpHouseDB::savePropertiesToFile(string filePath){
+ 
+	std::lock_guard<std::mutex> lock(_mutex);
+	bool statusOk = false;
+	
+	std::ofstream ofs;
+	
+	if(filePath.empty())
+		filePath = _propertyFilePath;
+
+	if(filePath.empty())
+		filePath = defaultPropertyFilePath();
+
+	try{
+		ofs.open(filePath, std::ios_base::trunc);
+		
+		if(ofs.fail())
+			return false;
+			
+		for (auto& [key, value] : _properties) {
+			ofs << key << ","  << value << "\n";
+		}
+
+		ofs.flush();
+		ofs.close();
+			
+		statusOk = true;
+	}
+	catch(std::ofstream::failure &writeErr) {
+			statusOk = false;
+	}
+
+		
+	return statusOk;
+}
+
+string PumpHouseDB::defaultPropertyFilePath(){
+	return "pumphouse.props.csv";
+}
+
+
+
 
 // MARK: -  API Secrets
 bool PumpHouseDB::apiSecretCreate(string APIkey, string APISecret){
-	return true;
+	
+	return apiSecretSetSecret(APIkey,APISecret);
+	 
 }
 
 bool PumpHouseDB::apiSecretSetSecret(string APIkey, string APISecret){
-	return true;
+	
+	if(!APIkey.empty() && !APISecret.empty()){
+		setProperty(string(PROP_API_KEY), APIkey);
+		setProperty(string(PROP_API_SECRET), APISecret);
+		return true;
+	}
+	 
+	return false;
 }
 
 bool PumpHouseDB::apiSecretDelete(string APIkey){
-	return true;
-
+	
+	if(!APIkey.empty()){
+		removeProperty(string(PROP_API_KEY));
+		removeProperty(string(PROP_API_SECRET));
+		return true;
+	}
+	 
+	return false;
 }
 
 bool PumpHouseDB::apiSecretGetSecret(string APIkey, string &APISecret){
+	
+	string key, secret;
+	
+	getProperty(string(PROP_API_KEY), &key);
+	getProperty(string(PROP_API_SECRET), &secret);
+ 
+	if(!key.empty() && !secret.empty()){
+		APIkey = key;
+		APISecret = secret;
+		return true;
+	}
+	
 	return false;
 }
 
 bool PumpHouseDB::apiSecretMustAuthenticate(){
-	return false;
-}
+	return getProperty(string(PROP_API_KEY), NULL) &&  getProperty(string(PROP_API_SECRET),NULL);
+ }
 
 // MARK: -   SERVER PORTS
 void  PumpHouseDB::setAllowRemoteTelnet(bool remoteTelnet) {

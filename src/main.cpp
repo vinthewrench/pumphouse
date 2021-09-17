@@ -24,11 +24,12 @@
 
 int main(int argc, const char * argv[]) {
 	
- 	LogMgr::shared()->_logFlags = LogMgr::LogLevelVerbose;
+// 	LogMgr::shared()->_logFlags = LogMgr::LogLevelDebug;
  
+	pumphouse.start();
+
 	//set up the api secrets
 	PumpHouseAPISecretMgr apiSecrets(pumphouse.getDB());
-	pumphouse.loadSetupFile();
 	
 	int telnetPort = pumphouse.getDB()->getTelnetPort();
 	int restPort = pumphouse.getDB()->getRESTPort();
@@ -39,9 +40,6 @@ int main(int argc, const char * argv[]) {
 	registerServerNouns();
 	registerCommandsLineFunctions();
 
-	pumphouse.startInverter();
-	pumphouse.startShunt();
-	pumphouse.startTempSensor();
 	
 	
 	TCPServer telnet_server(cmdQueue);

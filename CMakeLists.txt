@@ -21,8 +21,11 @@ set(SOURCES
 	PumphouseMgr/SerialStream.cpp
 	PumphouseMgr/PumpHouseAPISecretMgr.cpp
 	PumphouseMgr/TempSensor.cpp
+	PumphouseMgr/TankDepth.cpp
 	PumphouseMgr/I2C.cpp
 	PumphouseMgr/TMP102.cpp
+	PumphouseMgr/CPUInfo.cpp
+	PumphouseMgr/MCP3427.cpp
 	Submodule/FooServer/src/RESTutils.cpp
 	Submodule/FooServer/src/ServerCmdQueue.cpp
 	Submodule/FooServer/src/TCPClientInfo.cpp

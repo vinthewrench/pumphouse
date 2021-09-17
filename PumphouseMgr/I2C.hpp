@@ -22,6 +22,7 @@
 
 class I2C  {
 	
+	
 public:
 	I2C();
 	~I2C();
@@ -30,8 +31,20 @@ public:
  	bool begin(uint8_t	devAddr,  int *error = NULL);
 
 	void stop();
-	ssize_t write(const uint8_t*, size_t);
-	ssize_t read( void *buf, size_t nbyte);
+
+	bool isAvailable();
+	
+	ssize_t readBytes(uint8_t regAddr, void *buf, size_t nbyte);
+	ssize_t readByte(uint8_t regAddr,  void *buf);
+	ssize_t readBytes(void *buf, size_t nbyte);
+	ssize_t readByte(void *buf);
+
+	ssize_t writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte);
+	ssize_t writeByte(uint8_t regAddr, const uint8_t data);
+	ssize_t writeByte(const uint8_t data);
+
+//	ssize_t readBytes(void *buf, size_t nbyte);
+
 	
 	uint8_t	getDevAddr() {return _devAddr;};
 	

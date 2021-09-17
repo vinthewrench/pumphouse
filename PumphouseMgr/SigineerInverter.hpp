@@ -37,7 +37,7 @@ public:
 	SigineerInverter();
 	~SigineerInverter();
 
-	bool begin(const char * path, int *error = NULL);
+	bool begin(string path, int *error = NULL);
 	void stop();
 
 	bool isConnected();

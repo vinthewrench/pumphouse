@@ -12,42 +12,47 @@
 
 const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.0 dev 1";
 
-PumpHouseMgr::PumpHouseMgr(){
+PumpHouseMgr::PumpHouseMgr(): _tankSensor(&_db){
 	// start the thread running
 	_running = true;
 	_state = PumpHouseDevice::DEVICE_STATE_UNKNOWN;
 	_startTime = time(NULL);
 	_thread = std::thread(&PumpHouseMgr::run, this);
-
+	_cpuInfo.begin();
 }
 
 PumpHouseMgr::~PumpHouseMgr(){
 	_running = false;
+	_cpuInfo.stop();
+	
 	if (_thread.joinable())
 		_thread.join();
-
 }
 
 
-//void PumpHouseMgr::start( std::function<void(bool didSucceed, string error_text)> cb){
-//
-//	LOGT_INFO("PumpHouseMgr %s START", PumpHouseMgr_Version);
-//
-//	if(!_db.initValueInfoFromFile("")){
-//		if(cb)
-//			(cb)(false,string("Failed to load db schema."));
-//		return;;
-//	}
-//
-//	startInverter();
-//	startShunt();
-// }
+bool PumpHouseMgr::initSchemaFromFile(string filePath){
 
-bool PumpHouseMgr::loadSetupFile(string filePath){
-	
 	bool success = false;
 	_db.clear();
-	success =  _db.initValueInfoFromFile(filePath);
+ 
+	_db.restorePropertiesFromFile();
+
+	// setup logfile path
+	string str;
+	_db.getProperty(string(PumpHouseDB::PROP_LOG_FILE), &str);
+	LogMgr::shared()->setLogFilePath(str);
+
+	_db.getProperty(string(PumpHouseDB::PROP_LOG_FLAGS), &str);
+	if(!str.empty()){
+		char* p;
+		long val = strtol(str.c_str(), &p, 0);
+		if(*p == 0){
+			LogMgr::shared()->_logFlags = (uint8_t)val;
+		}
+	}
+	 
+ 	
+	success =  _db.initSchemaFromFile(filePath);
 
 	if(success) {
 		_state = PumpHouseDevice::DEVICE_STATE_DISCONNECTED;
@@ -56,15 +61,19 @@ bool PumpHouseMgr::loadSetupFile(string filePath){
 	return success;
 }
 
+void PumpHouseMgr::start(){
+	initSchemaFromFile();
+	startInverter();
+ 	startShunt();
+	startTempSensor();
+	startTankSensor();
+}
 
 void PumpHouseMgr::stop(){
-	
-	LOGT_INFO("PumpHouseMgr STOP");
 	stopInverter();
 	stopShunt();
-	
-	_tempSensor1.stop();
-
+	stopTankSensor();
+	stopTempSensor();
 }
 
 
@@ -83,6 +92,27 @@ void PumpHouseMgr::run(){
 				});
 			}
 
+			if(_tempSensor2.isConnected()){
+				// handle input
+				_tempSensor2.rcvResponse([=]( map<string,string> results){
+					_db.insertValues(results);
+				});
+			}
+
+			if(_tankSensor.isConnected()){
+				// handle input
+				_tankSensor.rcvResponse([=]( map<string,string> results){
+					_db.insertValues(results);
+				});
+			}
+			
+			if(_cpuInfo.isConnected()){
+				// handle input
+				_cpuInfo.rcvResponse([=]( map<string,string> results){
+					_db.insertValues(results);
+				});
+			}
+		 
 			if(_smartshunt.isConnected() || _inverter.isConnected() ) {
 			
 				_state = PumpHouseDevice::DEVICE_STATE_CONNECTED;
@@ -112,7 +142,7 @@ void PumpHouseMgr::run(){
 				int activity = select (max_sd + 1, &set, NULL, NULL,  &timeout);
 				
 				if ((activity < 0) && (errno!=EINTR)) {
-						printf("select error");
+//						printf("select error");
 				}
 				
 				if(_smartshunt.isConnected()){
@@ -143,6 +173,9 @@ void PumpHouseMgr::run(){
 			_inverter.idle();
 			_smartshunt.idle();
 			_tempSensor1.idle();
+			_tempSensor2.idle();
+			_tankSensor.idle();
+			_cpuInfo.idle();
 		};
 	}
 	catch ( const SerialStreamException& e)  {
@@ -183,8 +216,17 @@ string PumpHouseMgr::deviceStateString(PumpHouseDevice::device_state_t st) {
 void PumpHouseMgr::startInverter( std::function<void(bool didSucceed, string error_text)> cb){
 	int  errnum = 0;
 	bool didSucceed = false;
+	string path;
 	
-	didSucceed =  _inverter.begin("/dev/ttyUSB1", &errnum);
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_INVERTER_PORT), "/dev/ttyUSB1");
+	_db.getProperty(string(PumpHouseDB::PROP_INVERTER_PORT), &path);
+
+	if(path.empty()){
+		if(cb) (cb)(false, string(PumpHouseDB::PROP_INVERTER_PORT) + " is empty" );
+		return;
+	}
+
+	didSucceed =  _inverter.begin(path, &errnum);
 	if(didSucceed)
 		LOGT_INFO("Start Inverter  - OK");
 	else
@@ -210,8 +252,19 @@ void PumpHouseMgr::startShunt( std::function<void(bool didSucceed, string error_
 	
 	int  errnum = 0;
 	bool didSucceed = false;
-	didSucceed =  _smartshunt.begin("/dev/ttyUSB0", &errnum);
 	
+	string path;
+	
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_SMARTSHUNT_PORT), "/dev/ttyUSB0");
+	_db.getProperty(string(PumpHouseDB::PROP_SMARTSHUNT_PORT), &path);
+
+	if(path.empty()){
+		if(cb) (cb)(false, string(PumpHouseDB::PROP_SMARTSHUNT_PORT) + " is empty" );
+		return;
+	}
+	
+	didSucceed =  _smartshunt.begin(path, &errnum);
+ 
 	if(didSucceed)
 		LOGT_INFO("Start Shunt  - OK");
 	else
@@ -238,10 +291,9 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 	int  errnum = 0;
 	bool didSucceed = false;
 	
+	constexpr string_view TEMPSENSOR_KEY = "TEMP_";
 	
 	uint8_t deviceAddress = 0x48;
-	
-	constexpr string_view TEMPSENSOR_KEY = "TEMP_";
 	string resultKey =  string(TEMPSENSOR_KEY) + to_hex(deviceAddress,true);
  
 	didSucceed =  _tempSensor1.begin(0x48,resultKey, &errnum);
@@ -251,11 +303,27 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 						  "Temp Sensor 1",
 						  PumpHouseDB::TR_DONT_TRACK);
 		
-		LOGT_INFO("Start TempSensor  - OK");
+		LOGT_INFO("Start TempSensor 1 - OK");
 	}
 	else
-		LOGT_INFO("Start TempSensor  - FAIL %s", string(strerror(errnum)).c_str());
+		LOGT_INFO("Start TempSensor 1  - FAIL %s", string(strerror(errnum)).c_str());
  
+	
+	deviceAddress = 0x49;
+	resultKey =  string(TEMPSENSOR_KEY) + to_hex(deviceAddress,true);
+ 
+	
+	didSucceed =  _tempSensor2.begin(0x48,resultKey, &errnum);
+	if(didSucceed){
+		_db.addSchema(resultKey,
+						  PumpHouseDB::DEGREES_C,
+						  "Temp Sensor 2",
+						  PumpHouseDB::TR_DONT_TRACK);
+		
+		LOGT_INFO("Start TempSensor 2 - OK");
+	}
+
+	
 	if(cb)
 		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
 
@@ -263,9 +331,65 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 
 void PumpHouseMgr::stopTempSensor(){
 	_tempSensor1.stop();
+	_tempSensor2.stop();
 }
 
-PumpHouseDevice::device_state_t PumpHouseMgr::tempSensorState(){
+PumpHouseDevice::device_state_t PumpHouseMgr::tempSensor1State(){
 	return _tempSensor1.getDeviceState();
 }
 
+PumpHouseDevice::device_state_t PumpHouseMgr::tempSensor2State(){
+	return _tempSensor2.getDeviceState();
+}
+
+
+// MARK: -   Tank Sensor
+
+ 
+
+void PumpHouseMgr::startTankSensor( std::function<void(bool didSucceed, std::string error_text)> cb){
+	
+	int  errnum = 0;
+	bool didSucceed = false;
+	
+	
+	uint8_t deviceAddress = 0x68;
+	
+	const string TANK_DEPTH_KEY = "TANK";
+	const string TANK_DEPTH_RAW_KEY = "TANK_RAW";
+
+	string tank_trig_prefix = string(PumpHouseDB::PROP_TRIGGER_PREFIX)  + TANK_DEPTH_RAW_KEY;
+	_db.setPropertyIfNone(tank_trig_prefix,to_string(20) );
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_TANK_FULL) ,to_string(15400) );
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_TANK_EMPTY),to_string(7000) );
+
+	didSucceed =  _tankSensor.begin(deviceAddress, TANK_DEPTH_KEY, TANK_DEPTH_RAW_KEY, &errnum);
+	if(didSucceed){
+		
+		_db.addSchema(TANK_DEPTH_KEY,
+						  PumpHouseDB::PERCENT,
+						  "Tank Level",
+						  PumpHouseDB::TR_DONT_TRACK);
+
+		_db.addSchema(TANK_DEPTH_RAW_KEY,
+						  PumpHouseDB::INT,
+						  "Tank Level Raw",
+						  PumpHouseDB::TR_DONT_TRACK);
+
+		LOGT_INFO("Start TankSensor  - OK");
+	}
+	else
+		LOGT_INFO("Start TankSensor  - FAIL %s", string(strerror(errnum)).c_str());
+ 
+	if(cb)
+		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
+
+}
+
+void PumpHouseMgr::stopTankSensor(){
+	_tankSensor.stop();
+}
+
+PumpHouseDevice::device_state_t PumpHouseMgr::tankSensorState(){
+	return _tankSensor.getDeviceState();
+}

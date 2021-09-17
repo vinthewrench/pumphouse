@@ -16,56 +16,16 @@
 #include <sys/types.h>
 #include "LogMgr.hpp"
 
-#ifndef _LINUX_I2C_DEV_H
-#define _LINUX_I2C_DEV_H
-
-/* /dev/i2c-X ioctl commands.  The ioctl's parameter is always an
- * unsigned long, except for:
- *	- I2C_FUNCS, takes pointer to an unsigned long
- *	- I2C_RDWR, takes pointer to struct i2c_rdwr_ioctl_data
- *	- I2C_SMBUS, takes pointer to struct i2c_smbus_ioctl_data
- */
-#define I2C_RETRIES	0x0701	/* number of times a device address should
-					be polled when not acknowledging */
-#define I2C_TIMEOUT	0x0702	/* set timeout in units of 10 ms */
-
-/* NOTE: Slave address is 7 or 10 bits, but 10-bit addresses
- * are NOT supported! (due to code brokenness)
- */
+#ifndef I2C_SLAVE
 #define I2C_SLAVE	0x0703	/* Use this slave address */
-#define I2C_SLAVE_FORCE	0x0706	/* Use this slave address, even if it
-					is already in use by a driver! */
-#define I2C_TENBIT	0x0704	/* 0 for 7 bit addrs, != 0 for 10 bit */
+#endif /* I2C_SLAVE */
 
-#define I2C_FUNCS	0x0705	/* Get the adapter functionality mask */
-
-#define I2C_RDWR	0x0707	/* Combined R/W transfer (one STOP only) */
-
-#define I2C_PEC		0x0708	/* != 0 to use PEC with SMBus */
-#define I2C_SMBUS	0x0720	/* SMBus transfer */
+#ifndef I2C_BUS_DEV_FILE_PATH
+#define I2C_BUS_DEV_FILE_PATH "/dev/i2c-1"
+#endif /* I2C_SLAVE */
 
 
-/* This is the structure as used in the I2C_SMBUS ioctl call */
-struct i2c_smbus_ioctl_data {
-	uint8_t read_write;
-	uint8_t command;
-	uint8_t size;
-	union i2c_smbus_data  *data;
-};
 
-/* This is the structure as used in the I2C_RDWR ioctl call */
-struct i2c_rdwr_ioctl_data {
-	struct i2c_msg  *msgs;	/* pointers to i2c_msgs */
-	uint32_t nmsgs;			/* number of i2c_msgs */
-};
-
-#define  I2C_RDRW_IOCTL_MAX_MSGS	42
-
-#ifdef __KERNEL__
-#define I2C_MAJOR	89		/* Device major number		*/
-#endif
-
-#endif /* _LINUX_I2C_DEV_H */
 
 I2C::I2C(){
 	_isSetup = false;
@@ -98,11 +58,12 @@ bool I2C::begin(uint8_t	devAddr,   int * errorOut){
 		return false;
 	}
 	
-	if (ioctl(_fd, I2C_SLAVE, devAddr) < 0)
+	if (isAvailable())
 	{
-		LOG_INFO("Failed to acquire bus access and/or talk to I2C slave.\n");
+		LOG_INFO("Failed to acquire I2C bus access and/or talk to I2C slave.\n");
 		//ERROR HANDLING; you can check errno to see what went wrong
 		_fd = -1;
+		if(errorOut) *errorOut = errno;
 		return false;
 	}
  
@@ -123,11 +84,141 @@ void I2C::stop(){
 	_isSetup = false;
 }
 
+bool I2C::isAvailable(){
 
-ssize_t I2C::write(const uint8_t* buf, size_t nbyte){
-	return ::write(_fd, buf, nbyte);
-};
+	if(!_isSetup)
+		return false;
+	
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+	//	LOG_INFO("Failed to acquire bus access and/or talk to I2C slave.\n");
+		//ERROR HANDLING; you can check errno to see what went wrong
+		_fd = -1;
+		return false;
+	}
+	
+	return true;
+}
 
-ssize_t I2C::read( void *buf, size_t nbyte){
-	return ::read(_fd, buf, nbyte);
- }
+
+ssize_t I2C::writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte){
+	
+	ssize_t count = 0;
+
+	if(!_isSetup)
+		return -1;
+
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+		LOG_ERROR("Failed to select I2C  device(%02X): %s\n", _devAddr,strerror(errno));
+		return -1;
+	}
+ 
+	if (::write(_fd, &regAddr, 1) != 1) {
+		LOG_ERROR( "Failed to write reg(%02x) on device(%02X) : %s\n", regAddr, _devAddr,strerror(errno));
+		return(-1);
+	}
+	
+	count =  ::write(_fd, buf, nbyte);
+	if (count < 0) {
+			LOG_ERROR( "Failed to write device(%02x): %s\n", regAddr, strerror(errno));
+		return(-1);
+	} else if (count != nbyte) {
+		LOG_ERROR( "Short write from device(%02x): expected %d, got %d \n", regAddr, nbyte, count);
+		return(-1);
+	}
+	
+	return count;
+}
+
+
+ssize_t I2C::writeByte(uint8_t regAddr, const uint8_t data){
+	return writeBytes(regAddr, &data, data);
+}
+
+ssize_t I2C::writeByte(const uint8_t data){
+	
+	ssize_t count = 0;
+
+	if(!_isSetup)
+		return -1;
+
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+		LOG_ERROR("Failed to select I2C  device(%02X): %s\n", _devAddr,strerror(errno));
+		return -1;
+	}
+ 
+	count = ::write(_fd, &data, 1);
+	if (count != 1) {
+			LOG_ERROR( "Failed to write byte to device(%02x): %s\n", _devAddr, strerror(errno));
+		return(-1);
+	}
+	
+	return count;
+}
+
+
+ssize_t I2C::readBytes(void *buf, size_t nbyte){
+	
+	ssize_t count = 0;
+
+	if(!_isSetup)
+		return -1;
+
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+		LOG_ERROR("Failed to select I2C  device(%02X): %s\n", _devAddr,strerror(errno));
+		return -1;
+	}
+ 
+	count =  ::read(_fd, buf, nbyte);
+	if (count < 0) {
+			LOG_ERROR( "Failed to read device(%02x): %s\n", _devAddr, strerror(errno));
+		return(-1);
+	} else if (count != nbyte) {
+		LOG_ERROR( "Short read from device(%02x): expected %d, got %d \n", _devAddr, nbyte, count);
+		return(-1);
+	}
+	
+	return count;
+}
+
+ssize_t I2C::readByte(void *buf){
+	return readBytes(buf, 1);
+}
+
+ssize_t I2C::readByte(uint8_t regAddr, void *buf) {
+	 return readBytes(regAddr,  buf, 1);
+}
+
+
+ssize_t I2C::readBytes(uint8_t regAddr, void *buf, size_t nbyte){
+	
+	ssize_t count = 0;
+
+	if(!_isSetup)
+		return -1;
+
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+		LOG_ERROR("Failed to select I2C  device(%02X): %s\n", _devAddr,strerror(errno));
+		return -1;
+	}
+ 
+	if (::write(_fd, &regAddr, 1) != 1) {
+		LOG_ERROR( "Failed to write reg(%02x) on device(%02X) : %s\n", regAddr, _devAddr,strerror(errno));
+		return(-1);
+	}
+	
+	count =  ::read(_fd, buf, nbyte);
+	if (count < 0) {
+			LOG_ERROR( "Failed to read device(%02x): %s\n", regAddr, strerror(errno));
+		return(-1);
+	} else if (count != nbyte) {
+		LOG_ERROR( "Short read from device(%02x): expected %d, got %d \n", regAddr, nbyte, count);
+		return(-1);
+	}
+	
+	return count;
+}

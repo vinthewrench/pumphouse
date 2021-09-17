@@ -19,7 +19,9 @@
 #include "SmartShunt.hpp"
 #include "SigineerInverter.hpp"
 #include "TempSensor.hpp"
- 
+#include "TankDepth.hpp"
+#include "CPUInfo.hpp"
+
 using namespace std;
  
 class PumpHouseMgr {
@@ -27,11 +29,11 @@ class PumpHouseMgr {
 public:
 	static const char* 	PumpHouseMgr_Version;
 
-	
-	PumpHouseMgr();
+ 	PumpHouseMgr();
 	~PumpHouseMgr();
-	
-//	void start( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
+ 
+	void start();
+	void stop();
 	
 	void startInverter( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopInverter();
@@ -43,15 +45,17 @@ public:
 	
 	void startTempSensor( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopTempSensor();
-	PumpHouseDevice::device_state_t tempSensorState();
+	PumpHouseDevice::device_state_t tempSensor1State();
+	PumpHouseDevice::device_state_t tempSensor2State();
 
+	void startTankSensor( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
+	void stopTankSensor();
+	PumpHouseDevice::device_state_t tankSensorState();
 	
 	string deviceStateString(PumpHouseDevice::device_state_t st);
+ 
+ 	bool initSchemaFromFile(string filePath = "");
 
-	void stop();
-
- 	bool loadSetupFile(string filePath = "");
-	
 	long upTime();  // how long since we started
 	
 	PumpHouseDevice::device_state_t pumpHouseState() {return _state;};
@@ -72,8 +76,12 @@ public:
 	SmartShunt			_smartshunt;
 	SigineerInverter		_inverter;
 	TempSensor			_tempSensor1;
-	
+	TempSensor			_tempSensor2;
+
+	TankDepth			_tankSensor;
+	CPUInfo				_cpuInfo;
 	PumpHouseDB			_db;
+	
 	
 };
 #endif /* PumpHouseMgr_hpp */

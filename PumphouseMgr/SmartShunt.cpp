@@ -21,10 +21,10 @@ SmartShunt::~SmartShunt(){
 }
 
 
-bool SmartShunt::begin(const char * path, int *error){
+bool SmartShunt::begin(string path, int *error){
 	bool status = false;
 	
-	status = _stream.begin(path, B19200, error);
+	status = _stream.begin(path.c_str(), B19200, error);
 	if(status){
 		_state = INS_IDLE;
 		

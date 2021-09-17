@@ -66,13 +66,9 @@ bool TMP102::readTempC(float& tempOut){
 	
 	if(!isOpen())
 		return false;
-	
-	uint8_t b0[] = {TEMPERATURE_REGISTER};
-	if(_i2cPort.write( b0, 1) != 1)
-		return false;
-	
+ 
 	uint8_t registerByte[2] = {0,0};
-	if(_i2cPort.read(registerByte, 2) != 2)
+	if(_i2cPort.readBytes(TEMPERATURE_REGISTER, registerByte, 2) == -1)
 		return false;
 
 	int16_t digitalTemp;
