@@ -296,7 +296,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 	uint8_t deviceAddress = 0x48;
 	string resultKey =  string(TEMPSENSOR_KEY) + to_hex(deviceAddress,true);
  
-	didSucceed =  _tempSensor1.begin(0x48,resultKey, &errnum);
+	didSucceed =  _tempSensor1.begin(deviceAddress,resultKey, &errnum);
 	if(didSucceed){
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
@@ -313,7 +313,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 	resultKey =  string(TEMPSENSOR_KEY) + to_hex(deviceAddress,true);
  
 	
-	didSucceed =  _tempSensor2.begin(0x48,resultKey, &errnum);
+	didSucceed =  _tempSensor2.begin(deviceAddress,resultKey, &errnum);
 	if(didSucceed){
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
