@@ -61,7 +61,10 @@ set_target_properties(pumphouse PROPERTIES
            
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(pumphouse PRIVATE Threads::Threads)
+
+include_directories(/usr/include)
+link_directories(/usr/lib)
+target_link_libraries(pumphouse  PRIVATE sqlite3 Threads::Threads)
 
 target_include_directories(pumphouse
 	PRIVATE 

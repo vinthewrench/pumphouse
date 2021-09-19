@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <regex>
 
+using namespace timestamp;
+
 PumpHouseDB::PumpHouseDB(){
 	
 	_values.clear();
@@ -19,7 +21,8 @@ PumpHouseDB::PumpHouseDB(){
 	_eTag = 0;
 	_etagMap.clear();
 	_properties.clear();
- 
+	_sdb = NULL;
+ 	
 	_schemaMap = {
 		{"Bool", BOOL},				// Bool ON/OFF
 		{"Int", INT},				// Int
@@ -45,6 +48,11 @@ PumpHouseDB::PumpHouseDB(){
 
 PumpHouseDB::~PumpHouseDB(){
 	
+	if(_sdb)
+	{
+		sqlite3_close(_sdb);
+		_sdb = NULL;
+	}
 }
 
 
@@ -85,12 +93,16 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag
 	}
 	else if(schema.tracking == TR_DONT_TRACK)
 	{
-//		updated = valueShouldUpdate(key,value);
 	// only keep last value
-		_values[key] = {make_pair(when, value)};
+		_values[key] = make_pair(when, value) ;
  	}
 	else if(valueShouldUpdate(key,value)){
-		_values[key].push_back(make_pair(when, value));
+		// update value
+		_values[key] = make_pair(when, value);
+ 		
+		// record in DB
+		saveValueToDB(key, value, when);
+ 
 		updated = true;
 	}
 	
@@ -128,7 +140,7 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 		return false;
 	
 	if(_values.count(key)){
-		auto lastpair = _values[key].back();
+		auto lastpair = _values[key];
 		valueSchema_t vs = _schema[key];
 		
 		// do we ignore it
@@ -156,7 +168,7 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 				case MILLIAMPS:
 				case MAH:
  					triggerDiff = 500;
- 					break;			
+ 					break;
 	
 				case WATTS:
 				case VOLTS:
@@ -437,7 +449,7 @@ void PumpHouseDB::dumpMap(){
 	
 	for (auto& [key, value] : _values) {
 		
-		auto lastpair = _values[key].back();
+		auto lastpair = _values[key];
 		auto count = _values.count(key);
 		
 		string desc = "";
@@ -454,11 +466,76 @@ void PumpHouseDB::dumpMap(){
 	}
 }
 
+// MARK: -  DATABASE OPERATIONS
+
+bool PumpHouseDB::restoreValuesFromDB(){
+	
+	bool	statusOk = true;;
+
+	return statusOk;
+}
+ 
+bool PumpHouseDB::saveValueToDB(string key, string value, time_t time ){
+	
+	auto ts = TimeStamp(time);
+	
+	string sql = string("INSERT INTO SENSOR_DATA (NAME,DATE,VALUE) ")
+			+ "VALUES  ('" + key + "', '" + ts.ISO8601String() + "', '" + value + "' );";
+	
+//	printf("%s\n", sql.c_str());
+	
+	char *zErrMsg = 0;
+	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+ 
+	return true;
+}
+
+
+
 // MARK: -  SCHEMA
 
 
+bool PumpHouseDB::initLogDatabase(string filePath){
+	
+	// create a file path
+	if(filePath.size() == 0)
+		filePath = "pumphouse.db";
+
+	LOG_DEBUG("OPEN database: %s\n", filePath.c_str());
+
+	//  Open database
+	if(sqlite3_open(filePath.c_str(), &_sdb) != SQLITE_OK){
+		LOG_ERROR("sqlite3_open FAILED: %s\n", filePath.c_str(), sqlite3_errmsg(_sdb	) );
+		return false;
+	}
+	
+	// make sure primary tables are there.
+	string sql = "CREATE TABLE IF NOT EXISTS SENSOR_DATA("  \
+						"NAME 			  TEXT     	NOT NULL," \
+						"DATE          DATETIME	NOT NULL," \
+						"VALUE         TEXT     	NOT NULL);";
+	
+	char *zErrMsg = 0;
+	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+	
+	if(!restoreValuesFromDB()){
+		LOG_ERROR("restoreValuesFromDB FAILED\n");
+		return false;
+	}
+	
+	return true;
+}
+
 bool PumpHouseDB::initSchemaFromFile(string filePath){
-	bool 				statusOk = false;
+	bool	statusOk = false;
 	
 	std::ifstream	ifs;
 	
@@ -466,7 +543,7 @@ bool PumpHouseDB::initSchemaFromFile(string filePath){
 	if(filePath.size() == 0)
 		filePath = "valueschema.csv";
  
-	LOG_INFO("READ valueschema: %s\n", filePath.c_str());
+	LOG_DEBUG("READ valueschema: %s\n", filePath.c_str());
 	
 	try{
 		string line;
@@ -503,7 +580,7 @@ bool PumpHouseDB::initSchemaFromFile(string filePath){
 	}
 	catch(std::ifstream::failure &err) {
 		
-		LOG_INFO("READ valueschema:FAIL: %s\n", err.what());
+		LOG_ERROR("READ valueschema:FAIL: %s\n", err.what());
 		statusOk = false;
 	}
 	
@@ -767,8 +844,6 @@ json PumpHouseDB::schemaJSON(){
 json PumpHouseDB::currentValuesJSON(eTag_t  eTag){
 	json j;
 
-	timestamp::TimeStamp ts;
-
 	for (auto& [key, value] : _values) {
 		
 		if(eTag != 0){
@@ -780,7 +855,7 @@ json PumpHouseDB::currentValuesJSON(eTag_t  eTag){
 			if(!found) continue;
 		}
 	
-		auto lastpair = _values[key].back();
+		auto lastpair = _values[key];
 	
 		time_t t = lastpair.first;
 	 

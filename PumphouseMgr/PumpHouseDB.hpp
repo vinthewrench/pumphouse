@@ -23,14 +23,14 @@
 #include <map>
 #include <string>
 #include "json.hpp"
-
+#include <sqlite3.h>
+ 
 #include "PumphouseCommon.hpp"
 
 using namespace std;
 using namespace nlohmann;
 
 typedef  unsigned long eTag_t;
-
 
 class PumpHouseDB {
  
@@ -99,6 +99,7 @@ public:
 	PumpHouseDB();
   ~PumpHouseDB();
 	bool initSchemaFromFile(string filePath);
+	bool initLogDatabase(string filePath);
 
 	void clear();
 	
@@ -148,6 +149,8 @@ public:
 
 private:
 	
+	
+	sqlite3 	*_sdb;
 	mutable std::mutex _mutex;
 
 	string defaultPropertyFilePath();
@@ -159,9 +162,12 @@ private:
 	double 	normalizedDoubleForValue(string key, string value);
 	int 		intForValue(string key, string value);
 	
-	bool valueShouldUpdate(string key, string value);
+	bool 		valueShouldUpdate(string key, string value);
 
-	map<string,vector<pair<time_t, string>>> _values;
+	bool		restoreValuesFromDB();
+	bool		saveValueToDB(string key, string value, time_t time );
+
+	map<string, pair<time_t, string>> _values;
  
 	map<string,valueSchemaUnits_t>  _schemaMap;
 	map<string, valueSchema_t>	_schema;

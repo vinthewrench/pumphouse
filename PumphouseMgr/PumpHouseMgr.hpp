@@ -54,7 +54,7 @@ public:
 	
 	string deviceStateString(PumpHouseDevice::device_state_t st);
  
- 	bool initSchemaFromFile(string filePath = "");
+	bool initDataBase(string schemaFilePath = "", string logDBFilePath = "");
 
 	long upTime();  // how long since we started
 	

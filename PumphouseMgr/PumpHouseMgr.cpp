@@ -30,7 +30,8 @@ PumpHouseMgr::~PumpHouseMgr(){
 }
 
 
-bool PumpHouseMgr::initSchemaFromFile(string filePath){
+bool PumpHouseMgr::initDataBase(string schemaFilePath,
+										  string logDBFilePath ){
 
 	bool success = false;
 	_db.clear();
@@ -50,9 +51,10 @@ bool PumpHouseMgr::initSchemaFromFile(string filePath){
 			LogMgr::shared()->_logFlags = (uint8_t)val;
 		}
 	}
-	 
- 	
-	success =  _db.initSchemaFromFile(filePath);
+		
+	success =  _db.initSchemaFromFile(schemaFilePath)
+					&& _db.initLogDatabase(logDBFilePath);
+
 
 	if(success) {
 		_state = PumpHouseDevice::DEVICE_STATE_DISCONNECTED;
@@ -62,7 +64,7 @@ bool PumpHouseMgr::initSchemaFromFile(string filePath){
 }
 
 void PumpHouseMgr::start(){
-	initSchemaFromFile();
+	initDataBase();
 	startInverter();
  	startShunt();
 	startTempSensor();
@@ -228,9 +230,9 @@ void PumpHouseMgr::startInverter( std::function<void(bool didSucceed, string err
 
 	didSucceed =  _inverter.begin(path, &errnum);
 	if(didSucceed)
-		LOGT_INFO("Start Inverter  - OK");
+		LOGT_DEBUG("Start Inverter  - OK");
 	else
-		LOGT_INFO("Start Inverter  - FAIL %s", string(strerror(errnum)).c_str());
+		LOGT_ERROR("Start Inverter  - FAIL %s", string(strerror(errnum)).c_str());
  
 	if(cb)
 		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
@@ -266,9 +268,9 @@ void PumpHouseMgr::startShunt( std::function<void(bool didSucceed, string error_
 	didSucceed =  _smartshunt.begin(path, &errnum);
  
 	if(didSucceed)
-		LOGT_INFO("Start Shunt  - OK");
+		LOGT_DEBUG("Start Shunt  - OK");
 	else
-		LOGT_INFO("Start Shunt  - FAIL %s", string(strerror(errnum)).c_str());
+		LOGT_ERROR("Start Shunt  - FAIL %s", string(strerror(errnum)).c_str());
 
 	if(cb)
 		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
@@ -303,10 +305,10 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 						  "Temp Sensor 1",
 						  PumpHouseDB::TR_DONT_TRACK);
 		
-		LOGT_INFO("Start TempSensor 1 - OK");
+		LOGT_DEBUG("Start TempSensor 1 - OK");
 	}
 	else
-		LOGT_INFO("Start TempSensor 1  - FAIL %s", string(strerror(errnum)).c_str());
+		LOGT_ERROR("Start TempSensor 1  - FAIL %s", string(strerror(errnum)).c_str());
  
 	
 	deviceAddress = 0x49;
@@ -320,8 +322,10 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 						  "Temp Sensor 2",
 						  PumpHouseDB::TR_DONT_TRACK);
 		
-		LOGT_INFO("Start TempSensor 2 - OK");
+		LOGT_DEBUG("Start TempSensor 2 - OK");
 	}
+	else
+		LOGT_ERROR("Start TempSensor 2  - FAIL %s", string(strerror(errnum)).c_str());
 
 	
 	if(cb)
