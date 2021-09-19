@@ -91,17 +91,25 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag
 	if(schema.tracking == TR_IGNORE){
 		return false;
 	}
+	else if(schema.tracking == TR_STATIC) {
+		//  keep last value
+			_values[key] = make_pair(when, value) ;
+		//  but dont put this in the database
+	}
 	else if(schema.tracking == TR_DONT_TRACK)
 	{
 	// only keep last value
 		_values[key] = make_pair(when, value) ;
- 	}
+		
+		 //  Add these to DB - but dont insert.. just update.
+		saveUniqueValueToDB(key, value, when);
+  	}
 	else if(valueShouldUpdate(key,value)){
 		// update value
 		_values[key] = make_pair(when, value);
  		
 		// record in DB
-		saveValueToDB(key, value, when);
+		insertValueToDB(key, value, when);
  
 		updated = true;
 	}
@@ -471,18 +479,38 @@ void PumpHouseDB::dumpMap(){
 bool PumpHouseDB::restoreValuesFromDB(){
 	
 	bool	statusOk = true;;
+ 
+	_values.clear();
+ 
+	string sql = string("SELECT NAME, VALUE, MAX(strftime('%s', DATE)) AS DATE FROM SENSOR_DATA GROUP BY NAME;");
+	
+	sqlite3_stmt* stmt = NULL;
+	sqlite3_prepare_v2(_sdb, sql.c_str(), -1,  &stmt, NULL);
 
+	while ( (sqlite3_step(stmt)) == SQLITE_ROW) {
+	 
+		string  key = string( (char*) sqlite3_column_text(stmt, 0));
+		string  value = string((char*) sqlite3_column_text(stmt, 1));
+		time_t  when =  sqlite3_column_int64(stmt, 2);
+		
+//		printf("%8s  %8s %ld\n",  key.c_str(),  value.c_str(), when );
+		_values[key] = make_pair(when, value) ;
+	}
+	sqlite3_finalize(stmt);
+	
 	return statusOk;
 }
  
-bool PumpHouseDB::saveValueToDB(string key, string value, time_t time ){
+
+
+bool PumpHouseDB::insertValueToDB(string key, string value, time_t time ){
 	
 	auto ts = TimeStamp(time);
 	
 	string sql = string("INSERT INTO SENSOR_DATA (NAME,DATE,VALUE) ")
 			+ "VALUES  ('" + key + "', '" + ts.ISO8601String() + "', '" + value + "' );";
 	
-//	printf("%s\n", sql.c_str());
+ //	printf("%s\n", sql.c_str());
 	
 	char *zErrMsg = 0;
 	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
@@ -494,6 +522,36 @@ bool PumpHouseDB::saveValueToDB(string key, string value, time_t time ){
 	return true;
 }
 
+
+bool PumpHouseDB::saveUniqueValueToDB(string key, string value, time_t time ){
+	
+	auto ts = TimeStamp(time);
+	
+	string sql =
+	string("BEGIN;")
+	+ string("DELETE FROM SENSOR_DATA WHERE NAME = '") + key + "';"
+	+ string("INSERT INTO SENSOR_DATA (NAME,DATE,VALUE) ")
+			+ "VALUES  ('" + key + "', '" + ts.ISO8601String() + "', '" + value + "' );"
+	+ string("COMMIT;");
+
+	/*
+	 BEGIN;
+	 DELETE FROM SENSOR_DATA  WHERE NAME = 'TANK_RAW';
+	 INSERT INTO SENSOR_DATA (NAME,DATE,VALUE) VALUES  ('TANK_RAW', '2021-09-19 00:52:06 GMT', '1' );
+	 COMMIT;
+
+	 */
+ //	printf("%s\n", sql.c_str());
+	
+	char *zErrMsg = 0;
+	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+ 
+	return true;
+}
 
 
 // MARK: -  SCHEMA

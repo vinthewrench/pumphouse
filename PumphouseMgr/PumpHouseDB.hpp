@@ -165,8 +165,9 @@ private:
 	bool 		valueShouldUpdate(string key, string value);
 
 	bool		restoreValuesFromDB();
-	bool		saveValueToDB(string key, string value, time_t time );
-
+	bool		insertValueToDB(string key, string value, time_t time );
+	bool		saveUniqueValueToDB(string key, string value, time_t time );
+	
 	map<string, pair<time_t, string>> _values;
  
 	map<string,valueSchemaUnits_t>  _schemaMap;

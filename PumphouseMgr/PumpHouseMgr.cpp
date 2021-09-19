@@ -303,7 +303,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
 						  "Temp Sensor 1",
-						  PumpHouseDB::TR_DONT_TRACK);
+						  PumpHouseDB::TR_TRACK);
 		
 		LOGT_DEBUG("Start TempSensor 1 - OK");
 	}
@@ -320,7 +320,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
 						  "Temp Sensor 2",
-						  PumpHouseDB::TR_DONT_TRACK);
+						  PumpHouseDB::TR_TRACK);
 		
 		LOGT_DEBUG("Start TempSensor 2 - OK");
 	}
@@ -373,12 +373,12 @@ void PumpHouseMgr::startTankSensor( std::function<void(bool didSucceed, std::str
 		_db.addSchema(TANK_DEPTH_KEY,
 						  PumpHouseDB::PERCENT,
 						  "Tank Level",
-						  PumpHouseDB::TR_DONT_TRACK);
+						  PumpHouseDB::TR_TRACK);
 
 		_db.addSchema(TANK_DEPTH_RAW_KEY,
 						  PumpHouseDB::INT,
 						  "Tank Level Raw",
-						  PumpHouseDB::TR_DONT_TRACK);
+						  PumpHouseDB::TR_TRACK);
 
 		LOGT_INFO("Start TankSensor  - OK");
 	}
