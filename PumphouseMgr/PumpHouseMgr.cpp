@@ -367,19 +367,18 @@ void PumpHouseMgr::startTankSensor( std::function<void(bool didSucceed, std::str
 	_db.setPropertyIfNone(string(PumpHouseDB::PROP_TANK_FULL) ,to_string(15400) );
 	_db.setPropertyIfNone(string(PumpHouseDB::PROP_TANK_EMPTY),to_string(7000) );
 
+	_db.addSchema(TANK_DEPTH_KEY,
+					  PumpHouseDB::PERCENT,
+					  "Tank Level",
+					  PumpHouseDB::TR_TRACK);
+
+	_db.addSchema(TANK_DEPTH_RAW_KEY,
+					  PumpHouseDB::INT,
+					  "Tank Level Raw",
+					  PumpHouseDB::TR_TRACK);
+
 	didSucceed =  _tankSensor.begin(deviceAddress, TANK_DEPTH_KEY, TANK_DEPTH_RAW_KEY, &errnum);
 	if(didSucceed){
-		
-		_db.addSchema(TANK_DEPTH_KEY,
-						  PumpHouseDB::PERCENT,
-						  "Tank Level",
-						  PumpHouseDB::TR_TRACK);
-
-		_db.addSchema(TANK_DEPTH_RAW_KEY,
-						  PumpHouseDB::INT,
-						  "Tank Level Raw",
-						  PumpHouseDB::TR_TRACK);
-
 		LOGT_INFO("Start TankSensor  - OK");
 	}
 	else

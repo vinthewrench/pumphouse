@@ -59,7 +59,7 @@ public:
 	long upTime();  // how long since we started
 	
 	PumpHouseDevice::device_state_t pumpHouseState() {return _state;};
- 
+
 	PumpHouseDB*		getDB() {return &_db; };
  
 	

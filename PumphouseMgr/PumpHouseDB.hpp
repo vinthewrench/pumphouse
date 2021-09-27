@@ -132,6 +132,7 @@ public:
 	json	schemaJSON();
 	json	currentValuesJSON(eTag_t  eTag = 0);
 	json  jsonForValue(string key, string value);
+	json	currentJSONForKey(string key);
 	eTag_t lastEtag() { return  _eTag;};
 
 	// MARK: - properties

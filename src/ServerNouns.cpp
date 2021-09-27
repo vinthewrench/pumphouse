@@ -213,19 +213,30 @@ static void Schema_ValuesHandler(ServerCmdQueue* cmdQueue,
 		return;
 	}
  
-	eTag_t eTag = 0;
-	
-	if(v1.getStringFromMap("If-None-Match", url.headers(), str)){
-		char* p;
-		eTag = strtol(str.c_str(), &p, 0);
-		if(*p != 0) eTag = 0;
-	}
+	if(path.size() == 1) {
+		eTag_t eTag = 0;
 		
-	reply[string(JSON_ARG_VALUES)] = db->currentValuesJSON(eTag);
-	reply[string(JSON_ARG_ETAG)] = db->lastEtag();
+		if(v1.getStringFromMap("If-None-Match", url.headers(), str)){
+			char* p;
+			eTag = strtol(str.c_str(), &p, 0);
+			if(*p != 0) eTag = 0;
+		}
+			
+		reply[string(JSON_ARG_VALUES)] = db->currentValuesJSON(eTag);
+		reply[string(JSON_ARG_ETAG)] = db->lastEtag();
+		makeStatusJSON(reply,STATUS_OK);
+		(completion) (reply, STATUS_OK);
 
-	makeStatusJSON(reply,STATUS_OK);
-	(completion) (reply, STATUS_OK);
+	}
+	else 	if(path.size() == 2) {
+		
+		string key = path.at(1);
+
+		reply[string(JSON_ARG_VALUES)] = db->currentJSONForKey(key);
+		makeStatusJSON(reply,STATUS_OK);
+		(completion) (reply, STATUS_OK);
+	}
+	
 };
 
 // MARK:  PROPERTIES NOUN HANDLER
@@ -430,7 +441,7 @@ static void Properties_NounHandler(ServerCmdQueue* cmdQueue,
 	}
 };
 
-// MARK:  EVENTS NOUN HANDLERS
+// MARK:  STATE NOUN HANDLERS
 
 static bool State_NounHandler_GET(ServerCmdQueue* cmdQueue,
 											  REST_URL url,
@@ -453,6 +464,8 @@ static bool State_NounHandler_GET(ServerCmdQueue* cmdQueue,
 	}
 	 
 	reply[string(JSON_ARG_STATE)] 		= pumphouse.pumpHouseState();
+	reply[string(JSON_ARG_STATESTR)] = PumpHouseDevice::stateString(pumphouse.pumpHouseState());
+	
 	reply[string(JSON_ARG_INVERTER)] 	= pumphouse.inverterState() ;
 	reply[string(JSON_ARG_BATTERY)] 	= pumphouse.shuntState() ;
 

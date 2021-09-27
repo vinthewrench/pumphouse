@@ -18,7 +18,7 @@ PumpHouseDB::PumpHouseDB(){
 	
 	_values.clear();
 	_schema.clear();
-	_eTag = 0;
+	_eTag = 1;
 	_etagMap.clear();
 	_properties.clear();
 	_sdb = NULL;
@@ -495,9 +495,11 @@ bool PumpHouseDB::restoreValuesFromDB(){
 		
 //		printf("%8s  %8s %ld\n",  key.c_str(),  value.c_str(), when );
 		_values[key] = make_pair(when, value) ;
+		_etagMap[key] = _eTag++;
 	}
 	sqlite3_finalize(stmt);
 	
+		
 	return statusOk;
 }
  
@@ -845,7 +847,11 @@ bool PumpHouseDB::apiSecretGetSecret(string APIkey, string &APISecret){
 	getProperty(string(PROP_API_SECRET), &secret);
  
 	if(!key.empty() && !secret.empty()){
-		APIkey = key;
+		
+// we oinly have one in this DB
+		if(key != APIkey)
+			return false;
+
 		APISecret = secret;
 		return true;
 	}
@@ -924,9 +930,33 @@ json PumpHouseDB::currentValuesJSON(eTag_t  eTag){
  		j[key] = entry;
 	}
 	
+	if(j.empty()){
+		j = json::object();
+	}
+	
 	return j;
 
  }
+
+
+json PumpHouseDB::currentJSONForKey(string key){
+	json j;
+
+	if(_values.count(key)){
+		auto lastpair = _values[key];
+
+		time_t t = lastpair.first;
+	 
+		json entry;
+		entry[string(JSON_ARG_VALUE)] 		=   jsonForValue(key, lastpair.second);
+		entry[string(JSON_ARG_DISPLAYSTR)] =   displayStringForValue(key, lastpair.second);
+		entry[string(JSON_ARG_TIME)] 		=   t;
+		j[key] = entry;
+	}
+
+	return j;
+}
+
 	
 json PumpHouseDB::jsonForValue(string key, string value){
 	json j;
@@ -947,7 +977,7 @@ json PumpHouseDB::jsonForValue(string key, string value){
 		case DEGREES_C:
 		{
 			double val = normalizedDoubleForValue(key, value);
-			j = val;
+			j = to_string(val);
 		}
 			break;
 
@@ -955,14 +985,14 @@ json PumpHouseDB::jsonForValue(string key, string value){
 		case MINUTES:
 		{
 			int val  = intForValue(key, value);
-			j = val;
+			j = to_string(val);
 		}
 			break;
 			
  		case VE_PRODUCT:
 		{
 			int val = intForValue(key, value);
-			j = val;
+			j = to_string(val);
 		}
 			break;
 

@@ -39,6 +39,31 @@ public:
 	virtual void idle() = 0; 	// called from loop
 	virtual device_state_t getDeviceState() = 0;
 	
+	static std::string stateString(device_state_t state){
+		
+		std::string result;
+		
+		switch(state){
+				
+			case DEVICE_STATE_DISCONNECTED:
+				result = "Disconnected";
+				break;
+			case DEVICE_STATE_CONNECTED:
+				result = "Connected";
+				break;
+			case DEVICE_STATE_ERROR:
+				result = "Error";
+				break;
+				
+			default:
+				result = "Unknown";
+				break;
+				
+		}
+		
+		return result;
+	}
+
 	virtual PumpHouseDevice::response_result_t
 	rcvResponse(std::function<void(std::map<std::string, std::string>)> callback = NULL) { return INVALID;};
 	
