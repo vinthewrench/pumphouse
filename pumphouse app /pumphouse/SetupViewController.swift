@@ -134,8 +134,9 @@ class SetupViewController: UIViewController ,UITextFieldDelegate {
 		
 	}
 	
+		
 	override func viewWillDisappear(_ animated: Bool) {
-		super.viewWillAppear(animated)
+		super.viewWillDisappear(animated)
 		stopPollng();
 	}
 	 
@@ -265,17 +266,12 @@ class SetupViewController: UIViewController ,UITextFieldDelegate {
 		timer =  Timer.scheduledTimer(withTimeInterval: 1.0,
 												repeats: true,
 												block: { timer in
-												self.poll()
+												self.refreshView()
 												})
 	}
 	
 	public func stopPollng(){
 		timer.invalidate()
 	}
-
-	public func poll() {
-		svc?.refreshTime()
-
-	}
-
+ 
 }

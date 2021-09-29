@@ -178,8 +178,7 @@ class PHServerManager: ObservableObject {
 					}
 					else if let obj = try? decoder.decode(RESTStatus.self, from: data){
 						completion(response, obj, nil)
-					}
-					else if let obj = try? decoder.decode(RESTVersion.self, from: data){
+					}					else if let obj = try? decoder.decode(RESTVersion.self, from: data){
 						completion(response, obj, nil)
 					}
 					else if let obj = try? decoder.decode(RESTProperties.self, from: data){

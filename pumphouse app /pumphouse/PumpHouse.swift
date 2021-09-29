@@ -54,6 +54,9 @@ struct InverterValues {
 	var utilityFail : Bool
 	var batteryLow : Bool
  
+	var batteryTime: Double
+	var batteryConsumed: Double
+
 	var temp1: Double
 	var temp2: Double
 	var cpuTemp: Double
@@ -69,8 +72,9 @@ struct InverterValues {
 		self.temp1 = 0
 		self.temp2 = 0
 		self.cpuTemp = 0
-
-		self.utilityFail = false
+		self.batteryTime = 0
+		self.batteryConsumed = 0
+ 		self.utilityFail = false
 		self.batteryLow = false
 	}
 }
@@ -237,6 +241,16 @@ public class PumpHouse {
 				if let s1 = v.values["TEMP_0x49"]?.value,
 					let val = Double(s1) {
 					iv.temp2 = val
+				}
+				
+				if let s1 = v.values["TTG"]?.value,
+					let val = Double(s1) {
+					iv.batteryTime = val
+				}
+	
+				if let s1 = v.values["CE"]?.value,
+					let val = Double(s1) {
+					iv.batteryConsumed = val
 				}
 	 
 				completionHandler(.success(iv))
