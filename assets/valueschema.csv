@@ -55,3 +55,5 @@ VPV,mV,2,Panel voltage
 WARN,Int,2,Warning reason
 MON,Int,2,DC monitor mode
 CPU_TEMP,degC,3,CPU Temp
+I_TIMEOUT,Bool,3,Inverter Timeout
+

@@ -133,7 +133,6 @@ void PumpHouseMgr::run(){
 				}
 				
 				if(_inverter.isConnected()){
-
 					int fd = _inverter.getFD();
 					FD_SET (fd,&set);
 					if(fd > max_sd)
@@ -149,7 +148,7 @@ void PumpHouseMgr::run(){
 				
 				if(_smartshunt.isConnected()){
 					int fd = _smartshunt.getFD();
-					if(FD_ISSET (fd,&set)){
+					if(FD_ISSET (fd,&set) || _smartshunt.hasTimeout()){
 	
 						// handle input
 						_smartshunt.rcvResponse([=]( map<string,string> results){
@@ -160,7 +159,7 @@ void PumpHouseMgr::run(){
 
 				if(_inverter.isConnected()){
 					int fd = _inverter.getFD();
-					if(FD_ISSET (fd,&set)){
+					if(FD_ISSET (fd,&set) || _inverter.hasTimeout()){
 						// handle input
 						_inverter.rcvResponse([=]( map<string,string> results){
 							_db.insertValues(results);
@@ -209,6 +208,9 @@ string PumpHouseMgr::deviceStateString(PumpHouseDevice::device_state_t st) {
 			return "Connected";
 		case PumpHouseDevice::DEVICE_STATE_ERROR:
 			return "Error";
+		case PumpHouseDevice::DEVICE_STATE_TIMEOUT:
+			return "Timeout";
+
 	}
 };
 

@@ -55,6 +55,10 @@ void TankDepth::stop(){
 
 }
 
+void TankDepth::reset(){
+	
+}
+
 bool TankDepth::isConnected(){
 	return _sensor.isOpen();
 }

@@ -27,7 +27,8 @@ constexpr string_view INVERTER_OP_FREQ	 				= "I_FREQ";
 constexpr string_view INVERTER_BATTERY_V	 				= "I_BV";
 constexpr string_view INVERTER_BATTERY_TEMP 			= "I_BT";
 constexpr string_view INVERTER_UPS_STATUS 				= "I_STATUS";
- 
+constexpr string_view INVERTER_TIMEOUT		 			= "I_TIMEOUT";
+
 
 class SigineerInverter : public PumpHouseDevice{
  
@@ -49,6 +50,8 @@ public:
 	int getFD() {return _stream.getFD();};
 	device_state_t getDeviceState();
 
+	void reset(); 	// reset from timeout
+	
 private:
 
 	typedef enum  {
@@ -57,7 +60,8 @@ private:
 		INS_SENT_QUERY,
 		INS_RESPONSE,
  		INS_INVALID,
-	 
+		INS_TIMEOUT
+
 	}in_state_t;
  
 	in_state_t 	_state;
@@ -70,7 +74,8 @@ private:
 	
 	timeval			_lastQueryTime;
 	uint64_t     	_queryDelay;			// how long to wait before next query
-  
+	uint64_t     	_timeoutDelay;			 
+
 	
 };
 #endif /* SigineerInverter_hpp */

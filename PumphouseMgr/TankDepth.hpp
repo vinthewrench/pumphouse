@@ -37,6 +37,8 @@ public:
 	
 	void idle(); 	// called from loop
 
+	void reset(); 	// reset from timeout
+
 	device_state_t getDeviceState();
 	
 private:

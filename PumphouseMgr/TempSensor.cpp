@@ -51,6 +51,10 @@ bool TempSensor::isConnected(){
 	return _sensor.isOpen();
 }
  
+void TempSensor::reset(){
+	
+}
+
 PumpHouseDevice::response_result_t
 TempSensor::rcvResponse(std::function<void(map<string,string>)> cb){
 

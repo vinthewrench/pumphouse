@@ -53,6 +53,17 @@ bool SmartShunt::isConnected(){
 	return _stream.isOpen();
 }
 
+void SmartShunt::reset(){
+	_state = INS_IDLE;
+	
+	_checkSum = 0;
+	_rName.clear();
+	_rValue.clear();
+	_resultMap.clear();
+	_values.clear();
+
+}
+
  
 PumpHouseDevice::response_result_t
 		SmartShunt::rcvResponse(std::function<void(map<string,string>)> cb){

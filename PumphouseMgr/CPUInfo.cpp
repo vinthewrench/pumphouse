@@ -36,6 +36,11 @@ bool CPUInfo::isConnected(){
 	return _state == INS_IDLE  ||  _state == INS_RESPONSE;
 }
  
+void CPUInfo::reset(){
+	
+}
+
+
 PumpHouseDevice::response_result_t
 CPUInfo::rcvResponse(std::function<void(map<string,string>)> cb){
 

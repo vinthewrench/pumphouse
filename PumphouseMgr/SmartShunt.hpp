@@ -48,6 +48,8 @@ public:
 	
 	void idle(); 	// called from loop
 	
+	void reset(); 	// reset from timeout
+
 	int getFD() {return _stream.getFD();};
 	
 	device_state_t getDeviceState();

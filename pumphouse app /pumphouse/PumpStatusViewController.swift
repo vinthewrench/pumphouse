@@ -11,17 +11,7 @@ import UIKit
 import Toast
  
 class GradientView: UIView {
-
-	 // MARK: - Lifecycle
-//	 override init(frame: CGRect) {
-//		  super.init(frame: frame)
-//	 }
-//
-//	 required init?(coder: NSCoder) {
-//		super.init(coder:coder)
-//		  // fatalError("init(coder:) has not been implemented")
-//	 }
-
+ 
 	 override func layoutSubviews() {
 		  super.layoutSubviews()
 		  configureGradientLayer()
@@ -39,6 +29,28 @@ class GradientView: UIView {
 		  layer.addSublayer(gradient)
 	 }
 }
+
+class BatteryLevelView: UIView {
+ 
+	 override func layoutSubviews() {
+		  super.layoutSubviews()
+		  configureGradientLayer()
+	 }
+
+	 func configureGradientLayer(){
+		  backgroundColor = .clear
+		  let gradient = CAGradientLayer()
+		
+	 
+		let endcolor =  UIColor(red: 46/255, green: 182/255, blue: 44/266, alpha: 0.8)
+		let startcolor =  UIColor(red: 131/255, green: 225/255, blue: 117/255, alpha: 0.8)
+		  gradient.colors = [startcolor.cgColor, endcolor.cgColor]
+		  gradient.locations = [0, 1]
+		  gradient.frame = bounds
+		  layer.addSublayer(gradient)
+	 }
+}
+
 class PumpStatusViewController: UIViewController {
 
 	@IBOutlet var vwPump	: UIView!
@@ -61,6 +73,7 @@ class PumpStatusViewController: UIViewController {
 	@IBOutlet var imgBatIn		: UIImageView!
 	@IBOutlet var imgBatOut		: UIImageView!
 	@IBOutlet var imgBattery		: UIImageView!
+	@IBOutlet var vwBatteryLevel: BatteryLevelView!
 
 	@IBOutlet var lblBatCur	: UILabel!
 	@IBOutlet var lblBatV	: 	UILabel!
@@ -129,9 +142,23 @@ class PumpStatusViewController: UIViewController {
 					 
 					self.lblACin.text =  String(format: "%.0f V", iv.acIn )
 					self.lblACout.text =  String(format: "%.0f V", iv.acOut )
-					self.lblACcur.text =  String(format: "%.0f A", iv.acAmps )
-					self.lblAChz.text =  String(format: "%.0f Hz", iv.acHz )
-
+					
+					if(iv.acAmps == 0){
+						self.lblACcur.isHidden = true
+					}
+					else {
+						self.lblACcur.text =  String(format: "%.0f A", iv.acAmps )
+						self.lblACcur.isHidden = false
+					}
+		
+					if(iv.acHz == 60){
+						self.lblAChz.isHidden = true
+					}
+					else {
+						self.lblAChz.text =  String(format: "%.1f Hz", iv.acHz )
+						self.lblAChz.isHidden = false
+					}
+	
 					self.lblBatConsumed.text =  String(format: "%.1f Ah", iv.batteryConsumed )
 
 					if(iv.batteryTime	 == -1){

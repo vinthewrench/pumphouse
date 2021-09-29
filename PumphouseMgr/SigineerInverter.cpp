@@ -30,7 +30,9 @@ bool SigineerInverter::begin(string path, int *error){
 	if(status){
 		_state = INS_IDLE;
 		_response.clear();
-		_queryDelay = 10;	// seconds
+//		_queryDelay = 10;	// seconds
+		_queryDelay = 5;
+		_timeoutDelay = 2;  //
 		_lastQueryTime = {0,0};
 		_resultMap.clear();
 		
@@ -53,17 +55,34 @@ bool SigineerInverter::isConnected(){
 	return _stream.isOpen();
 }
  
+
+void SigineerInverter::reset(){
+	_state = INS_IDLE;
+	_response.clear();
+	_lastQueryTime = {0,0};
+	_resultMap.clear();
+}
+
+
 PumpHouseDevice::response_result_t
-			SigineerInverter::rcvResponse(std::function<void(map<string,string>)> cb){
-
+SigineerInverter::rcvResponse(std::function<void(map<string,string>)> cb){
+	
 	PumpHouseDevice::response_result_t result = NOTHING;
-
+	
 	if(!_stream.isOpen()) {
 		return ERROR;
 	}
- 
+	
+	if(_state == INS_TIMEOUT){
+		_resultMap.clear();
+		_resultMap[string(INVERTER_TIMEOUT)]  = "1";
+		if(cb) (cb)(_resultMap);
+		reset();
+		return PROCESS_VALUES;
+	}
+	
 	while(_stream.available()) {
- 
+		
 		uint8_t ch = _stream.read();
 		result = process_char(ch);
 		
@@ -76,7 +95,7 @@ done:
 	
 	if(result == CONTINUE)
 		return result;
-
+	
 	if(result ==  INVALID){
 		uint8_t sav =  LogMgr::shared()->_logFlags;
 		START_VERBOSE;
@@ -84,7 +103,7 @@ done:
 		LogMgr::shared()->_logFlags = sav;
 		return result;
 	}
- 
+	
 	return result;
 }
 
@@ -98,7 +117,10 @@ PumpHouseDevice::device_state_t SigineerInverter::getDeviceState(){
 	
 	else if(_state == INS_INVALID)
 		retval = DEVICE_STATE_ERROR;
-	
+
+	else if(_state == INS_TIMEOUT)
+		retval = DEVICE_STATE_TIMEOUT;
+
 	else retval = DEVICE_STATE_CONNECTED;
  
 	return retval;
@@ -107,28 +129,49 @@ PumpHouseDevice::device_state_t SigineerInverter::getDeviceState(){
 
 void SigineerInverter::idle() {
 	
-	if(isConnected() && (_state == INS_IDLE)){
+	if(isConnected()){
 		
-		bool shouldQuery = false;
-		
-		if(_lastQueryTime.tv_sec == 0 &&  _lastQueryTime.tv_usec == 0 ){
-			shouldQuery = true;
-		} else {
-			
-			timeval now, diff;
-			gettimeofday(&now, NULL);
-			timersub(&now, &_lastQueryTime, &diff);
-		
-			if(diff.tv_sec >=  _queryDelay  ) {
-				shouldQuery = true;
+		switch (_state) {
+			case INS_SENT_QUERY:
+			case INS_RESPONSE:
+				
+				timeval now, diff;
+				gettimeofday(&now, NULL);
+				timersub(&now, &_lastQueryTime, &diff);
+				
+				if(diff.tv_sec >=  _timeoutDelay  ) {
+					// we hit a timeout
+					_state = INS_TIMEOUT;
+				}
+				
+				break;
+				
+			case INS_IDLE:
+			{
+				bool shouldQuery = false;
+				
+				if(_lastQueryTime.tv_sec == 0 &&  _lastQueryTime.tv_usec == 0 ){
+					shouldQuery = true;
+				} else {
+					
+					timeval now, diff;
+					gettimeofday(&now, NULL);
+					timersub(&now, &_lastQueryTime, &diff);
+					
+					if(diff.tv_sec >=  _queryDelay  ) {
+						shouldQuery = true;
+					}
+				}
+				
+				if(shouldQuery){
+					write(getFD(), "Q1\r", 3);
+					_state = INS_SENT_QUERY;
+					gettimeofday(&_lastQueryTime, NULL);
+				}
 			}
+				
+			default:;
 		}
-		
-		if(shouldQuery){
-			write(getFD(), "Q1\r", 3);
-			_state = INS_SENT_QUERY;
-			gettimeofday(&_lastQueryTime, NULL);
-			}
 	}
 }
 
@@ -174,10 +217,10 @@ PumpHouseDevice::response_result_t SigineerInverter::process_char( uint8_t ch){
 				_resultMap[string(INVERTER_BATTERY_V)] 		= v[5];
 				_resultMap[string(INVERTER_BATTERY_TEMP)] 	= v[6];
 				_resultMap[string(INVERTER_UPS_STATUS)] 		= v[7];
- 
+				_resultMap[string(INVERTER_TIMEOUT)]  			= "0";
+
 				// we have a set of good values
 				retval = PROCESS_VALUES;
-	
 				_state = INS_IDLE;
 			}
 			else{

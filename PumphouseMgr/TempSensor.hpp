@@ -34,8 +34,9 @@ public:
 	response_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
 	
 	void idle(); 	// called from loop
+	void reset(); 	// reset from timeout
 
- 	device_state_t getDeviceState();
+	device_state_t getDeviceState();
 	
 private:
 
