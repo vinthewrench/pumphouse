@@ -74,8 +74,7 @@ public class PumpHouseFetcher: ObservableObject {
 
 	public func getChangedValues( completion: @escaping () -> Void = {}) {
 		
-		return
-		
+
 		guard AppData.serverInfo.validated  else {
 			return
 		}

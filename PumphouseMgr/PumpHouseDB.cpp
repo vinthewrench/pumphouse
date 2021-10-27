@@ -6,6 +6,10 @@
 //
 
 #include "PumpHouseDB.hpp"
+
+#include "SigineerInverter.hpp"
+
+
 #include "TimeStamp.hpp"
 #include "LogMgr.hpp"
 #include "Utils.hpp"
@@ -61,6 +65,7 @@ void PumpHouseDB::clear(){
 
 }
 
+
 bool PumpHouseDB::insertValues(map<string,string>  values, time_t when){
 	
 	bool didUpdate = false;
@@ -104,21 +109,24 @@ bool PumpHouseDB::insertValue(string key, string value, time_t when, eTag_t eTag
 		 //  Add these to DB - but dont insert.. just update.
 		saveUniqueValueToDB(key, value, when);
   	}
-	else if(valueShouldUpdate(key,value)){
-		// update value
-		_values[key] = make_pair(when, value);
- 		
-		// record in DB
-		insertValueToDB(key, value, when);
- 
-		updated = true;
-	}
+	else if(schema.tracking == TR_TRACK)
+	{
+		if(valueShouldUpdate(key,value)){
+			
+			// update value
+			_values[key] = make_pair(when, value);
+
+			// record in DB
+			insertValueToDB(key, value, when);
+			updated = true;
+			}
+		}
 	
 	if(updated){
 		_etagMap[key] = eTag;
 	}
 
-//		printf("%s %s: %s \n", updated?"T":"F",  key.c_str(), value.c_str());
+ //		printf("%s %s: %s \n", updated?"T":"F",  key.c_str(), value.c_str());
 
 	return updated;
 }
@@ -142,15 +150,16 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 	
 	bool shouldInsert = true;
 	double triggerDiff = 0;
-	
+
+
 	valueSchema_t schema = schemaForKey(key);
 	if(schema.tracking == TR_IGNORE)
 		return false;
-	
+
 	if(_values.count(key)){
 		auto lastpair = _values[key];
 		valueSchema_t vs = _schema[key];
-		
+	
 		// do we ignore it
 		if(vs.units == IGNORE)
 			return false;
@@ -158,7 +167,7 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 		// quick string compare to see if its the same
 		if(lastpair.second == value)
  			return false;
-		
+
 		// see if it's a number
 		char *p1, *p;
 		double newVal = strtod(value.c_str(), &p);
@@ -166,7 +175,7 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
 		if(*p == 0 && *p1 == 0 ){
 			
 			double diff = abs(oldval-newVal);
-			
+		
 			switch (vs.units) {
 				case DEGREES_C:
 					triggerDiff = 1.0;
@@ -179,8 +188,18 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
  					break;
 	
 				case WATTS:
-				case VOLTS:
 					triggerDiff = 5;
+					break;
+					
+				case VOLTS:
+					if(key == INVERTER_BATTERY_V )		// low voltage
+						triggerDiff = 0.0;
+					else
+						triggerDiff = 4.0;
+					break;
+
+				case AMPS:
+					triggerDiff = 1.0;
 					break;
 					
 				case PERMILLE:
@@ -211,9 +230,9 @@ bool PumpHouseDB::valueShouldUpdate(string key, string value){
  				
 			shouldInsert = diff > triggerDiff;
 			
-//			if(key != "I" && key != "V")
-// 				printf("%s %8s %5.3f -  %5.3f = %f.3 > %f.3\n", shouldInsert?"T":"f", key.c_str(),
-//					 oldval, newVal, diff , triggerDiff );
+ 	//		if(key == INVERTER_BATTERY_V)
+//  				printf("%s %8s %5.3f -  %5.3f = %f.3 > %f.3\n", shouldInsert?"T":"F", key.c_str(),
+// 					 oldval, newVal, diff , triggerDiff );
 		}
 	}
 	
@@ -473,11 +492,81 @@ void PumpHouseDB::dumpMap(){
 				 );
 	}
 }
+// MARK: - Events
+bool PumpHouseDB::logEvent(ph_event_t evt, time_t when ){
+	
+	if(when == 0)
+		when = time(NULL);
+
+	auto ts = TimeStamp(when);
+
+//printf("%s \t EVT: %s\n", ts.ISO8601String().c_str(), displayStringForEvent(evt).c_str());
+			  
+	string sql = string("INSERT INTO EVENT_LOG (EVENT,DATE) ")
+			+ "VALUES  (" + to_string(evt) + ", '" + ts.ISO8601String() + "' );";
+	
+//  printf("%s\n", sql.c_str());
+	
+	char *zErrMsg = 0;
+	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+	
+	return true;
+}
+
+string PumpHouseDB::displayStringForEvent(ph_event_t evt){
+	
+	string result = "UNKNOWN";
+	switch (evt) {
+
+		case EV_START:
+			result = "START";
+			break;
+
+		case EV_SHUTDOWN:
+			result = "SHUTDOWN";
+			break;
+
+		case EV_INV_BYPASS:
+			result = "BYPASS";
+			break;
+
+		case EV_INV_INVERTER:
+			result = "INVERTER";
+			break;
+
+		case EV_INV_FLOAT:
+			result = "FLOAT";
+			break;
+
+		case EV_INV_FAST_CHARGE:
+			result = "FAST";
+			break;
+
+		case EV_INV_NOT_RESPONDING:
+			result = "INV_NOT_RESPONDING";
+			break;
+			
+		case EV_INV_FAIL:
+			result = "INV_FAIL";
+			break;
+
+		default:;
+	
+	}
+	
+	return result;
+}
+
 
 // MARK: -  DATABASE OPERATIONS
 
 bool PumpHouseDB::restoreValuesFromDB(){
 	
+	std::lock_guard<std::mutex> lock(_mutex);
 	bool	statusOk = true;;
  
 	_values.clear();
@@ -493,7 +582,7 @@ bool PumpHouseDB::restoreValuesFromDB(){
 		string  value = string((char*) sqlite3_column_text(stmt, 1));
 		time_t  when =  sqlite3_column_int64(stmt, 2);
 		
-//		printf("%8s  %8s %ld\n",  key.c_str(),  value.c_str(), when );
+// 		printf("%8s  %8s %ld\n",  key.c_str(),  value.c_str(), when );
 		_values[key] = make_pair(when, value) ;
 		_etagMap[key] = _eTag++;
 	}
@@ -507,12 +596,13 @@ bool PumpHouseDB::restoreValuesFromDB(){
 
 bool PumpHouseDB::insertValueToDB(string key, string value, time_t time ){
 	
+	std::lock_guard<std::mutex> lock(_mutex);
 	auto ts = TimeStamp(time);
 	
 	string sql = string("INSERT INTO SENSOR_DATA (NAME,DATE,VALUE) ")
 			+ "VALUES  ('" + key + "', '" + ts.ISO8601String() + "', '" + value + "' );";
 	
- //	printf("%s\n", sql.c_str());
+// printf("%s\n", sql.c_str());
 	
 	char *zErrMsg = 0;
 	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
@@ -527,6 +617,7 @@ bool PumpHouseDB::insertValueToDB(string key, string value, time_t time ){
 
 bool PumpHouseDB::saveUniqueValueToDB(string key, string value, time_t time ){
 	
+	std::lock_guard<std::mutex> lock(_mutex);
 	auto ts = TimeStamp(time);
 	
 	string sql =
@@ -556,6 +647,178 @@ bool PumpHouseDB::saveUniqueValueToDB(string key, string value, time_t time ){
 }
 
 
+bool PumpHouseDB::removeHistoryForKey(string key, float days){
+	
+	std::lock_guard<std::mutex> lock(_mutex);
+	bool success = false;
+	
+	string sql = string("DELETE FROM SENSOR_DATA ");
+	
+	if(key.size() > 0) {
+		sql += "WHERE NAME ='" + key + "' ";
+	}
+	
+	if(days > 0) {
+		
+		if(key.size() > 0) {
+			sql += "AND ";
+		}
+		else {
+			sql += "WHERE ";
+		}
+		
+		sql += "DATE < datetime('now' , '-" + to_string(days) + " days'); ";
+	}
+	else {
+		sql += ";";
+	}
+	sqlite3_stmt* stmt = NULL;
+	
+	if(sqlite3_prepare_v2(_sdb, sql.c_str(), -1,  &stmt, NULL)  == SQLITE_OK){
+		
+		if(sqlite3_step(stmt) == SQLITE_DONE) {
+ 
+			int count =  sqlite3_changes(_sdb);
+			LOG_DEBUG("sqlite %s\n %d rows affected n", sql.c_str(), count );
+			success = true;
+		}
+		else
+		{
+			LOG_ERROR("sqlite3_step FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		}
+		sqlite3_finalize(stmt);
+		
+	}
+	else {
+		LOG_ERROR("sqlite3_prepare_v2 FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_errmsg(_sdb);
+	}
+	
+	return success;
+}
+
+bool PumpHouseDB::historyForKey(string key, historicValues_t &valuesOut, float days, int limit){
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	bool success = false;
+	
+	historicValues_t values;
+	values.clear();
+
+	string sql = string("SELECT strftime('%s', DATE) AS DATE, VALUE FROM SENSOR_DATA WHERE NAME = '")
+	+ key + "'";
+	
+	if(limit){
+		sql += " ORDER BY DATE DESC LIMIT " + to_string(limit) + ";";
+	}
+	else if(days > 0) {
+		sql += " AND DATE > datetime('now' , '-" + to_string(days) + " days');";
+	}
+	else {
+		sql += ";";
+	}
+	
+	sqlite3_stmt* stmt = NULL;
+
+ 	sqlite3_prepare_v2(_sdb, sql.c_str(), -1,  &stmt, NULL);
+	
+	while ( (sqlite3_step(stmt)) == SQLITE_ROW) {
+		time_t  when =  sqlite3_column_int64(stmt, 0);
+		string  value = string((char*) sqlite3_column_text(stmt, 1));
+		values.push_back(make_pair(when, value)) ;
+	}
+	sqlite3_finalize(stmt);
+
+	success = values.size() > 0;
+	
+	if(success){
+		valuesOut = values;
+	}
+
+	
+	return success;
+}
+
+bool PumpHouseDB::historyForEvents( historicEvents_t &eventsOut, float days, int limit){
+	std::lock_guard<std::mutex> lock(_mutex);
+	bool success = false;
+	
+	historicEvents_t events;
+	events.clear();
+
+	string sql = string("SELECT strftime('%s', DATE) AS DATE, EVENT FROM EVENT_LOG ");
+	 
+	if(limit){
+		sql += " ORDER BY DATE DESC LIMIT " + to_string(limit) + ";";
+	}
+	else if(days > 0) {
+		sql += " WHERE DATE > datetime('now' , '-" + to_string(days) + " days');";
+	}
+	else {
+		sql += ";";
+	}
+	
+	sqlite3_stmt* stmt = NULL;
+
+	sqlite3_prepare_v2(_sdb, sql.c_str(), -1,  &stmt, NULL);
+	
+	while ( (sqlite3_step(stmt)) == SQLITE_ROW) {
+		time_t  when =  sqlite3_column_int64(stmt, 0);
+		int  event =  sqlite3_column_int(stmt, 1);
+		events.push_back(make_pair(when, (ph_event_t) event)) ;
+	}
+	sqlite3_finalize(stmt);
+
+	success =  true ; //events.size() > 0;
+	
+	if(success){
+		eventsOut = events;
+	}
+	
+	return success;
+	
+}
+
+bool PumpHouseDB::removeHistoryForEvents(float days){
+	
+	std::lock_guard<std::mutex> lock(_mutex);
+	bool success = false;
+	
+	string sql = string("DELETE FROM EVENT_LOG ");
+		
+	if(days > 0) {
+ 		sql += "WHERE DATE < datetime('now' , '-" + to_string(days) + " days'); ";
+	}
+	else {
+		sql += ";";
+	}
+	sqlite3_stmt* stmt = NULL;
+	
+	if(sqlite3_prepare_v2(_sdb, sql.c_str(), -1,  &stmt, NULL)  == SQLITE_OK){
+		
+		if(sqlite3_step(stmt) == SQLITE_DONE) {
+ 
+			int count =  sqlite3_changes(_sdb);
+			LOG_DEBUG("sqlite %s\n %d rows affected n", sql.c_str(), count );
+			success = true;
+		}
+		else
+		{
+			LOG_ERROR("sqlite3_step FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		}
+		sqlite3_finalize(stmt);
+		
+	}
+	else {
+		LOG_ERROR("sqlite3_prepare_v2 FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_errmsg(_sdb);
+	}
+	
+	return success;
+}
+
+
+
 // MARK: -  SCHEMA
 
 
@@ -574,17 +837,28 @@ bool PumpHouseDB::initLogDatabase(string filePath){
 	}
 	
 	// make sure primary tables are there.
-	string sql = "CREATE TABLE IF NOT EXISTS SENSOR_DATA("  \
+	string sql1 = "CREATE TABLE IF NOT EXISTS SENSOR_DATA("  \
 						"NAME 			  TEXT     	NOT NULL," \
 						"DATE          DATETIME	NOT NULL," \
 						"VALUE         TEXT     	NOT NULL);";
 	
 	char *zErrMsg = 0;
-	if(sqlite3_exec(_sdb,sql.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
-		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql.c_str(), sqlite3_errmsg(_sdb	) );
+	if(sqlite3_exec(_sdb,sql1.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql1.c_str(), sqlite3_errmsg(_sdb	) );
 		sqlite3_free(zErrMsg);
 		return false;
 	}
+	// make sure primary tables are there.
+	string sql2 = "CREATE TABLE IF NOT EXISTS EVENT_LOG("  \
+						"EVENT 		  INTEGER    NOT NULL," \
+						"DATE          DATETIME	NOT NULL);";
+	
+	if(sqlite3_exec(_sdb,sql2.c_str(),NULL, 0, &zErrMsg  ) != SQLITE_OK){
+		LOG_ERROR("sqlite3_exec FAILED: %s\n\t%s\n", sql2.c_str(), sqlite3_errmsg(_sdb	) );
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+
 	
 	if(!restoreValuesFromDB()){
 		LOG_ERROR("restoreValuesFromDB FAILED\n");
@@ -716,6 +990,20 @@ bool  PumpHouseDB::getUint16Property(string key, uint16_t * valOut){
 	return false;
 }
 
+bool  PumpHouseDB::getFloatProperty(string key, float * valOut){
+	
+	string str;
+	if(getProperty(string(key), &str)){
+		char* p;
+		float val = strtof(str.c_str(), &p);
+		if(*p == 0){
+			if(valOut)
+				*valOut = (float) val;
+			return true;
+		}
+	}
+	return false;
+}
  
 bool PumpHouseDB::restorePropertiesFromFile(string filePath){
 
@@ -961,7 +1249,7 @@ json PumpHouseDB::currentJSONForKey(string key){
 json PumpHouseDB::jsonForValue(string key, string value){
 	json j;
 
-	string suffix =  unitSuffixForKey(key);
+//	string suffix =  unitSuffixForKey(key);
 
 	switch(unitsForKey(key)){
 
@@ -976,8 +1264,9 @@ json PumpHouseDB::jsonForValue(string key, string value){
 		case PERMILLE:
 		case DEGREES_C:
 		{
-			double val = normalizedDoubleForValue(key, value);
-			j = to_string(val);
+			j = value;
+//			double val = normalizedDoubleForValue(key, value);
+//			j = to_string(val);
 		}
 			break;
 

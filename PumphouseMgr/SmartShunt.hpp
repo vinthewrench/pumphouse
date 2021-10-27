@@ -43,6 +43,7 @@ public:
 	void stop();
 
 	bool isConnected();
+	time_t lastReponseTime() { return _lastResponseTime;}
 
 	PumpHouseDevice::response_result_t rcvResponse(std::function<void(map<string,string>)> callback = NULL);
 	
@@ -68,6 +69,7 @@ private:
 
 	  typedef enum  {
 		  INS_INVALID = 0,
+		  INS_STARTED ,
 		  INS_IDLE ,
 		  INS_RECORD_BEGIN,
 		  INS_RECORD_NAME,
@@ -78,6 +80,8 @@ private:
 
 	
 	// dynamic values.
+	time_t			_lastResponseTime;
+
 	map<string,string> _resultMap;
 	string		_rName;
 	string 	_rValue;

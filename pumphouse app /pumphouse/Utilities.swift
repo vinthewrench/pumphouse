@@ -93,3 +93,8 @@ extension StringProtocol {
 		  self[index(startIndex, offsetBy: offset)]
 	 }
 }
+
+extension String {
+var boolValue: Bool {
+	 return (self as NSString).boolValue
+}}

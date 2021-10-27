@@ -10,6 +10,9 @@
 
 #include <stdexcept>
  
+extern "C" {
+void dumpHex(uint8_t* buffer, int length, int offset = 0);
+}
 
 class PumpHouseException: virtual public std::runtime_error {
 	 

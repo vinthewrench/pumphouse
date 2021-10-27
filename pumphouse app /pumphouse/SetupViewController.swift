@@ -9,106 +9,87 @@ import Foundation
 import UIKit
 import Toast
  
-class StatusViewController: UIViewController {
-	
-	@IBOutlet var lblVersion	: UILabel!
-	@IBOutlet var lblStatus	: UILabel!
-	@IBOutlet var lblUptime	: UILabel!
-	
-	var upTimeFormatter: DateComponentsFormatter {
-		let formatter = DateComponentsFormatter()
-		formatter.allowedUnits = [.day, .hour, .minute, .second]
-		formatter.unitsStyle = .short
-		return formatter
-	}
+//
+//class StatusViewController: UIViewController {
+//
+//	@IBOutlet var lblVersion	: UILabel!
+//	@IBOutlet var lblStatus	: UILabel!
+//	@IBOutlet var lblUptime	: UILabel!
+//
+//	var upTimeFormatter: DateComponentsFormatter {
+//		let formatter = DateComponentsFormatter()
+//		formatter.allowedUnits = [.day, .hour, .minute, .second]
+//		formatter.unitsStyle = .short
+//		return formatter
+//	}
+//
+//	public func refreshView() {
+//
+//		if(	AppData.serverInfo.validated){
+//
+//			PumpHouse.shared.fetchData(.status) { result in
+//
+//				if case .success(let status as RESTStatus) = result {
+//					self.lblStatus.text = status.stateString
+//					self.lblVersion.text = status.version
+//
+//					let upTimeStr = self.upTimeFormatter.string(from: TimeInterval(status.uptime))!
+//					self.lblUptime.text = upTimeStr
+//
+//				}
+//				else {
+//					self.lblUptime.text = ""
+//					self.lblStatus.text = ""
+//					self.lblVersion.text = ""
+//					}
+//			}
+//
+//		}
+//
+//	}
+//}
+//
+//protocol SetupViewControllerDelegate {
+//	 func didDismissSetupViewController(_ sender:SetupViewController)
+//}
 
-	public func refreshTime() {
-		
-		if(	AppData.serverInfo.validated){
-			
-			PumpHouse.shared.fetchData(.date) { result in
-				
-				if case .success(let info as RESTDateInfo) = result {
-					
-					let upTimeStr = self.upTimeFormatter.string(from: TimeInterval(info.uptime))!
-					self.lblUptime.text = upTimeStr
-				}
-				else {
-					self.lblUptime.text = ""
-				}
-			}
-		}
-	}
-	
-	public func refreshView() {
-		
-		if(	AppData.serverInfo.validated){
-	
-			refreshTime();
-		
-			PumpHouse.shared.fetchData(.status) { result in
-				
-				if case .success(let status as RESTStatus) = result {
-					self.lblStatus.text = status.stateString
-				}
-				else {
-					self.lblUptime.text = ""
-				}
-			}
-	
-			PumpHouse.shared.fetchData(.version) { result in
-				
-				if case .success(let version as RESTVersion) = result {
-					
-					self.lblVersion.text = version.version
-			}
-				else {
-					self.lblVersion.text = ""
-				}
-			}
-			
-		}
-	 
-	}
-}
-
-class SetupViewController: UIViewController ,UITextFieldDelegate {
+class SetupViewController: UIViewController,
+									UITextFieldDelegate,
+									UIAdaptivePresentationControllerDelegate {
 
 	enum loginState {
 		case loading, success, failed, disconnected
 	}
-	@IBOutlet var lblItem		: UILabel!
  	@IBOutlet var txtServerHost	: UITextField!
 	@IBOutlet var txtServerPort	: UITextField!
 	@IBOutlet var txtKey			: UITextField!
 	@IBOutlet var txtSecret		: UITextField!
 	@IBOutlet var btnConnect		: BHButton!
 	@IBOutlet var btnSecured		: UIButton!
-
-	@IBOutlet var vwInfo			: UIView!
 	
-	var svc : StatusViewController?
+//	var svc : StatusViewController?
  	var timer = Timer()
-	
 	var isSecured: Bool = true
 	
 	private var connectState = loginState.disconnected
-	
+
+	class func create() -> SetupViewController? {
+		let storyboard = UIStoryboard(name: "SetupView", bundle: nil)
+		let vc = storyboard.instantiateViewController(withIdentifier: "SetupViewController") as? SetupViewController
+		
+		return vc
+	}
+ 
 	
 	override func viewDidLoad() {
 		super.viewDidLoad()
-		
-		if let vc = self.storyboard?.instantiateViewController(withIdentifier: "StatusViewController") as? StatusViewController {
-			
-			vc.view.frame = self.vwInfo.bounds;
-			vc.willMove(toParent: self)
-			self.vwInfo.addSubview(vc.view)
-			self.addChild(vc)
-			vc.didMove(toParent: self)
-			svc = vc
-			
-	 		}
+		self.presentationController?.delegate = self
 }
+	
+	func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+			 return connectState == loginState.success
+		}
+
 	
 	func textFieldShouldReturn(_ textField: UITextField) -> Bool {
 		 textField.resignFirstResponder()
@@ -121,15 +102,10 @@ class SetupViewController: UIViewController ,UITextFieldDelegate {
 		if(connectState == loginState.success){
 			
 			self.btnConnect.setTitle("Disconnect", for: .normal)
-
-			svc?.refreshView()
-			vwInfo.isHidden = false;
-	 
 		}
 		else {
 			
 			self.btnConnect.setTitle("Connect", for: .normal)
-			vwInfo.isHidden = true;
 		}
 		
 	}
@@ -187,7 +163,6 @@ class SetupViewController: UIViewController ,UITextFieldDelegate {
 
 		self.stopPollng();
 
-
 		if(connectState == loginState.success){
 			self.connectState = loginState.disconnected
 			AppData.serverInfo.validated = false
@@ -216,8 +191,11 @@ class SetupViewController: UIViewController ,UITextFieldDelegate {
 				
 				self.connectState = loginState.success
 				AppData.serverInfo.validated = true
-				self.startPolling();
-				self.refreshView()
+				
+				self.dismiss(animated: true)
+
+//				self.startPolling();
+//				self.refreshView()
 				break
 				
 			case .success(let status as RESTError):

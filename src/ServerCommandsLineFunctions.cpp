@@ -333,7 +333,7 @@ static bool VersionCmdHandler( stringvector line,
 	//	}
 	
 	// simulate URL
-	REST_URL url("GET /version\n\n");
+	REST_URL url("GET /state\n\n");
 	ServerCmdQueue::shared()->queueRESTCommand(url, cInfo,[=] (json reply, httpStatusCodes_t code) {
 		
 		bool success = didSucceed(reply);
@@ -346,8 +346,8 @@ static bool VersionCmdHandler( stringvector line,
 				oss << ver << ", ";
 			}
 			
-			if(reply.count(JSON_ARG_TIMESTAMP) ) {
-				string timestamp = reply[string(JSON_ARG_TIMESTAMP)];
+			if(reply.count(JSON_ARG_BUILD_TIME) ) {
+				string timestamp = reply[string(JSON_ARG_BUILD_TIME)];
 				oss <<  timestamp;
 			}
 			
@@ -390,7 +390,7 @@ static bool DATECmdHandler( stringvector line,
 	using namespace rest;
 	TCPClientInfo cInfo = mgr->getClientInfo();
 	
-	REST_URL url("GET /date\n\n");
+	REST_URL url("GET /state\n\n");
 	ServerCmdQueue::shared()->queueRESTCommand(url, cInfo,[=] (json reply, httpStatusCodes_t code) {
 	
 		std::ostringstream oss;

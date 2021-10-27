@@ -14,6 +14,8 @@
 SmartShunt::SmartShunt(){
 	_state = INS_INVALID;
 	_values.clear();
+	_lastResponseTime = 0;
+
 }
 
 SmartShunt::~SmartShunt(){
@@ -26,8 +28,7 @@ bool SmartShunt::begin(string path, int *error){
 	
 	status = _stream.begin(path.c_str(), B19200, error);
 	if(status){
-		_state = INS_IDLE;
-		
+		_state = INS_STARTED;
 		_checkSum = 0;
 		_rName.clear();
 		_rValue.clear();
@@ -66,28 +67,37 @@ void SmartShunt::reset(){
 
  
 PumpHouseDevice::response_result_t
-		SmartShunt::rcvResponse(std::function<void(map<string,string>)> cb){
- 
+SmartShunt::rcvResponse(std::function<void(map<string,string>)> cb){
+	
 	PumpHouseDevice::response_result_t result = PumpHouseDevice::NOTHING;
-
+	
 	if(!_stream.isOpen()) {
 		return PumpHouseDevice::ERROR;
 	}
- 
+	
+	if(_state == INS_STARTED){
+		_state = INS_IDLE;
+		_resultMap.clear();
+		// nothing  to do here..
+		//				_resultMap[string(INVERTER_COMMUNICATIONS)]  =  to_string(RESTARTED);
+		if(cb) (cb)(_resultMap);
+		return PumpHouseDevice::PROCESS_VALUES;
+	}
+	
 	while(_stream.available()) {
 		uint8_t ch = _stream.read();
 		result = process_char(ch);
 		
 		if(result == PumpHouseDevice::PROCESS_VALUES){
 			if(cb) (cb)(_resultMap);
- 		}
+		}
 	}
 	
 done:
 	
 	if(result == PumpHouseDevice::CONTINUE)
 		return result;
-
+	
 	if(result ==  PumpHouseDevice::INVALID){
 		uint8_t sav =  LogMgr::shared()->_logFlags;
 		START_VERBOSE;
@@ -95,7 +105,7 @@ done:
 		LogMgr::shared()->_logFlags = sav;
 		return result;
 	}
-
+	
 	return result;
 }
 
@@ -136,7 +146,6 @@ PumpHouseDevice::response_result_t SmartShunt::process_char( uint8_t ch){
 			printf( "%02x |%c|\n", ch, ch);
 		}
 #endif
-
 	
 	switch (_state) {
 
@@ -200,6 +209,8 @@ PumpHouseDevice::response_result_t SmartShunt::process_char( uint8_t ch){
 			if(_checkSum == 0){
 				// we have a set of good values
 				retval = PumpHouseDevice::PROCESS_VALUES;
+				_lastResponseTime = time(NULL);
+	
 			}
 		
 			_state = INS_IDLE;

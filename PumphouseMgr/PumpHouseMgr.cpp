@@ -10,9 +10,23 @@
 #include "Utils.hpp"
 
 
-const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.0 dev 1";
 
-PumpHouseMgr::PumpHouseMgr(): _tankSensor(&_db){
+const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.2 dev 1";
+
+//void signal_callback_handler(int signum) {
+//	cout << "Caught signal " << signum << endl;
+//	// Terminate program
+//	exit(signum);
+//}
+
+PumpHouseMgr::PumpHouseMgr(): _tankSensor(&_db), _inverter(&_db){
+//	signal(SIGINT, signal_callback_handler);
+//	signal(SIGHUP, signal_callback_handler);
+//	signal(SIGQUIT, signal_callback_handler);
+//	signal(SIGTERM, signal_callback_handler);
+//	signal(SIGKILL, signal_callback_handler);
+//
+	
 	// start the thread running
 	_running = true;
 	_state = PumpHouseDevice::DEVICE_STATE_UNKNOWN;
@@ -55,9 +69,10 @@ bool PumpHouseMgr::initDataBase(string schemaFilePath,
 	success =  _db.initSchemaFromFile(schemaFilePath)
 					&& _db.initLogDatabase(logDBFilePath);
 
-
 	if(success) {
 		_state = PumpHouseDevice::DEVICE_STATE_DISCONNECTED;
+		_db.logEvent(PumpHouseDB::EV_START );
+		
 	}
  
 	return success;
@@ -65,6 +80,7 @@ bool PumpHouseMgr::initDataBase(string schemaFilePath,
 
 void PumpHouseMgr::start(){
 	initDataBase();
+	
 	startInverter();
  	startShunt();
 	startTempSensor();
@@ -114,14 +130,14 @@ void PumpHouseMgr::run(){
 					_db.insertValues(results);
 				});
 			}
-		 
+
 			if(_smartshunt.isConnected() || _inverter.isConnected() ) {
-			
+				
 				_state = PumpHouseDevice::DEVICE_STATE_CONNECTED;
 				
 				int max_sd = 0;
 				struct timeval timeout = {TIMEOUT_SEC, 0};
-
+				
 				fd_set set;
 				FD_ZERO (&set);
 				
@@ -138,37 +154,29 @@ void PumpHouseMgr::run(){
 					if(fd > max_sd)
 						max_sd = fd;
 				}
-		 
+				
 				/* select returns 0 if timeout, 1 if input available, -1 if error. */
 				int activity = select (max_sd + 1, &set, NULL, NULL,  &timeout);
 				
-				if ((activity < 0) && (errno!=EINTR)) {
-//						printf("select error");
+				// ping both devices for input
+				if(_smartshunt.isConnected()){
+						_smartshunt.rcvResponse([=]( map<string,string> results){
+						_db.insertValues(results);
+					});
 				}
 				
-				if(_smartshunt.isConnected()){
-					int fd = _smartshunt.getFD();
-					if(FD_ISSET (fd,&set) || _smartshunt.hasTimeout()){
-	
-						// handle input
-						_smartshunt.rcvResponse([=]( map<string,string> results){
-							_db.insertValues(results);
-						});
-					}
-				}
-
 				if(_inverter.isConnected()){
-					int fd = _inverter.getFD();
-					if(FD_ISSET (fd,&set) || _inverter.hasTimeout()){
-						// handle input
-						_inverter.rcvResponse([=]( map<string,string> results){
-							_db.insertValues(results);
-						});
+					_inverter.rcvResponse([=]( map<string,string> results){
+						_db.insertValues(results);
+					});
 				}
+				
+				if ((activity < 0) && (errno!=EINTR)) {
+					LOGT_ERROR("SERIAL SELECT ERROR - FAIL %s", string(strerror(errno)).c_str());
 				}
 			}
-			else { // no devices
-				sleep(1);
+			else { // no devices wait for timeoy value
+				sleep(TIMEOUT_SEC);
 			}
 			
 			_inverter.idle();
@@ -224,18 +232,29 @@ void PumpHouseMgr::startInverter( std::function<void(bool didSucceed, string err
 	
 	_db.setPropertyIfNone(string(PumpHouseDB::PROP_INVERTER_PORT), "/dev/ttyUSB1");
 	_db.getProperty(string(PumpHouseDB::PROP_INVERTER_PORT), &path);
-
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_INVERTER_BATV_FLOAT) ,to_string(26.0) );
+	_db.setPropertyIfNone(string(PumpHouseDB::PROP_INVERTER_BATV_FAST),to_string(29.0) );
+ 
 	if(path.empty()){
 		if(cb) (cb)(false, string(PumpHouseDB::PROP_INVERTER_PORT) + " is empty" );
 		return;
 	}
 
 	didSucceed =  _inverter.begin(path, &errnum);
-	if(didSucceed)
+	if(didSucceed) {
 		LOGT_DEBUG("Start Inverter  - OK");
-	else
+	}
+	else{
 		LOGT_ERROR("Start Inverter  - FAIL %s", string(strerror(errnum)).c_str());
- 
+	}
+	
+	// log the restart
+	if(_inverter.isConnected()){
+		_inverter.rcvResponse([=]( map<string,string> results){
+			_db.insertValues(results);
+		});
+	}
+
 	if(cb)
 		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
 }
@@ -249,6 +268,11 @@ PumpHouseDevice::device_state_t PumpHouseMgr::inverterState(){
 	return _inverter.getDeviceState();
 
 }
+
+time_t PumpHouseMgr::lastInverterReponseTime(){
+	return _inverter.lastReponseTime();
+}
+
 
 // MARK: -   Battery Shunt
 
@@ -274,6 +298,13 @@ void PumpHouseMgr::startShunt( std::function<void(bool didSucceed, string error_
 	else
 		LOGT_ERROR("Start Shunt  - FAIL %s", string(strerror(errnum)).c_str());
 
+	// log the restart
+	if(_smartshunt.isConnected()){
+		_smartshunt.rcvResponse([=]( map<string,string> results){
+			_db.insertValues(results);
+		});
+	}
+
 	if(cb)
 		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
 }
@@ -286,6 +317,11 @@ void PumpHouseMgr::startShunt( std::function<void(bool didSucceed, string error_
 PumpHouseDevice::device_state_t PumpHouseMgr::shuntState(){
 	return _smartshunt.getDeviceState();
 }
+
+time_t PumpHouseMgr::lastShuntReponseTime(){
+	return _smartshunt.lastReponseTime();
+}
+
 
 // MARK: -   I2C Temp Sensors
 
@@ -398,3 +434,54 @@ void PumpHouseMgr::stopTankSensor(){
 PumpHouseDevice::device_state_t PumpHouseMgr::tankSensorState(){
 	return _tankSensor.getDeviceState();
 }
+
+
+extern "C" {
+
+
+void dumpHex(uint8_t* buffer, int length, int offset)
+{
+	char hexDigit[] = "0123456789ABCDEF";
+	int			i;
+	int						lineStart;
+	int						lineLength;
+	short					c;
+	const unsigned char	  *bufferPtr = buffer;
+	
+	char                    lineBuf[1024];
+	char                    *p;
+	
+#define kLineSize	8
+	for (lineStart = 0, p = lineBuf; lineStart < length; lineStart += lineLength,  p = lineBuf )
+	{
+		lineLength = kLineSize;
+		if (lineStart + lineLength > length)
+			lineLength = length - lineStart;
+		
+		p += sprintf(p, "%6d: ", lineStart+offset);
+		for (i = 0; i < lineLength; i++){
+			*p++ = hexDigit[ bufferPtr[lineStart+i] >>4];
+			*p++ = hexDigit[ bufferPtr[lineStart+i] &0xF];
+			if((lineStart+i) &0x01)  *p++ = ' ';  ;
+		}
+		for (; i < kLineSize; i++)
+			p += sprintf(p, "   ");
+		
+		p += sprintf(p,"  ");
+		for (i = 0; i < lineLength; i++) {
+			c = bufferPtr[lineStart + i] & 0xFF;
+			if (c > ' ' && c < '~')
+				*p++ = c ;
+			else {
+				*p++ = '.';
+			}
+		}
+		*p++ = 0;
+		
+		
+		printf("%s\n",lineBuf);
+	}
+#undef kLineSize
+}
+}
+  

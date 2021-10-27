@@ -31,12 +31,12 @@ H8,mV,2,Maximum main (battery) voltage
 H9,sec,3,Time since full
 HSDS,Int,2,Day sequence number (0..364)
 I,mA,2,Current
-I_BT,degC,2,Battery temp.
+# I_BT,degC,2,Battery temp.
 I_BV,V,2,Voltage
 I_FREQ,Hz,2,Frequency
 I_IPFV,V,2,I/P Fault Voltage
 I_IPV,V,2,I/P Voltage
-I_OPC,A,2,O/P Current
+I_OPC,%,2,O/P % of Capacity
 I_OPV,V,2,O/P Voltage
 I_STATUS,Binary,2,Inverter Status
 IL,mA,2,Load current
@@ -55,5 +55,3 @@ VPV,mV,2,Panel voltage
 WARN,Int,2,Warning reason
 MON,Int,2,DC monitor mode
 CPU_TEMP,degC,3,CPU Temp
-I_TIMEOUT,Bool,3,Inverter Timeout
-

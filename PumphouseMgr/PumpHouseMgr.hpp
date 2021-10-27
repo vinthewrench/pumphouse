@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <thread>			//Needed for std::thread
 #include <functional>
+#include <cstdlib>
+#include <signal.h>
 
 #include "PumphouseCommon.hpp"
 #include "PumpHouseDB.hpp"
@@ -38,11 +40,13 @@ public:
 	void startInverter( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopInverter();
 	PumpHouseDevice::device_state_t inverterState();
-
+	time_t lastInverterReponseTime();
+	
 	void startShunt( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopShunt();
 	PumpHouseDevice::device_state_t shuntState();
-	
+	time_t lastShuntReponseTime();
+
 	void startTempSensor( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
 	void stopTempSensor();
 	PumpHouseDevice::device_state_t tempSensor1State();
@@ -59,9 +63,7 @@ public:
 	long upTime();  // how long since we started
 	
 	PumpHouseDevice::device_state_t pumpHouseState() {return _state;};
-
 	PumpHouseDB*		getDB() {return &_db; };
- 
 	
  private:
 	 
@@ -71,17 +73,15 @@ public:
 	 void run();
 
 	PumpHouseDevice::device_state_t	_state;
-	time_t 									_startTime;		// to calculate uptime
+	time_t 				_startTime;		// to calculate uptime
 
 	SmartShunt			_smartshunt;
 	SigineerInverter		_inverter;
 	TempSensor			_tempSensor1;
 	TempSensor			_tempSensor2;
-
-	TankDepth			_tankSensor;
+	TankDepth 			_tankSensor;
 	CPUInfo				_cpuInfo;
 	PumpHouseDB			_db;
-	
 	
 };
 #endif /* PumpHouseMgr_hpp */

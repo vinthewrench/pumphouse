@@ -41,6 +41,10 @@ public:
 
 	constexpr static string_view PROP_TANK_FULL 				= "prop-tank-full";
 	constexpr static string_view PROP_TANK_EMPTY 				= "prop-tank-empty";
+	
+	constexpr static string_view PROP_INVERTER_BATV_FLOAT	= "prop-inv-float";
+	constexpr static string_view PROP_INVERTER_BATV_FAST		= "prop-inv-fast";
+
 	constexpr static string_view PROP_TRIGGER_PREFIX 			= "trigger-";
 
 	constexpr static string_view PROP_LOG_FLAGS						= "log-flags";
@@ -78,14 +82,39 @@ public:
 		TR_TRACK		= 2,
 		TR_DONT_TRACK =  3 // use latest value, dont track
 	}valueTracking_t;
+
 	
+	// dont change these numbers, they persist in database
+	typedef enum {
+		EV_UNKNOWN 				= 0,
+	 	EV_START					= 1,
+		EV_SHUTDOWN				= 2,
+		
+		EV_INV_BYPASS			= 3,		// on AC bypass
+		EV_INV_INVERTER		= 4,		// inverter running
+		EV_INV_FAST_CHARGE 	= 5,
+		EV_INV_FLOAT		 	= 6,
+		EV_INV_NOT_RESPONDING  = 7,
+		EV_INV_FAIL 			= 8,
+
+//		EV_SHUNT_FAIL,
+//		EV_SHUNT_START
+		
+		EV_WELLPUMP_START,
+		EV_WELLPUMP_STOP,
+		
+		EV_TANKPUMP_START,
+		EV_TANKPUMP_STOP,
+	}ph_event_t;
+
 private:
-	
+ 	
 	typedef struct {
 	  string  					description;
 	  valueSchemaUnits_t  		units;
 	  valueTracking_t			tracking;
   } valueSchema_t;
+
 
 public:
 	constexpr static string_view JSON_ARG_NAME			= "name";
@@ -93,9 +122,13 @@ public:
  	constexpr static string_view JSON_ARG_UNITS			= "units";
 	constexpr static string_view JSON_ARG_SUFFIX			= "suffix";
 	constexpr static string_view JSON_ARG_VALUE			= "value";
+	constexpr static string_view JSON_ARG_EVENT			= "event";
 	constexpr static string_view JSON_ARG_TIME			= "time";
 	constexpr static string_view JSON_ARG_DISPLAYSTR		= "display";
  
+	typedef vector<pair<time_t, string>> historicValues_t;
+	typedef vector<pair<time_t, ph_event_t>> historicEvents_t;
+
 	PumpHouseDB();
   ~PumpHouseDB();
 	bool initSchemaFromFile(string filePath);
@@ -129,11 +162,21 @@ public:
 	void  setRESTPort(int port);
 	int  	getRESTPort();
 
+	// MARK: -   Data
 	json	schemaJSON();
 	json	currentValuesJSON(eTag_t  eTag = 0);
 	json  jsonForValue(string key, string value);
 	json	currentJSONForKey(string key);
 	eTag_t lastEtag() { return  _eTag;};
+	bool	historyForKey(string key, historicValues_t &values, float days = 0.0, int limit = 0);
+	bool 	removeHistoryForKey(string key, float days);
+
+	// MARK: - Events
+	bool logEvent(ph_event_t evt, time_t when = 0);
+	bool historyForEvents( historicEvents_t &events, float days = 0.0, int limit = 0);
+	bool removeHistoryForEvents(float days);
+	string displayStringForEvent(ph_event_t evt);
+
 
 	// MARK: - properties
 	
@@ -145,6 +188,8 @@ public:
 	bool setPropertyIfNone(string key, string value);
 
 	bool getUint16Property(string key, uint16_t * value);
+	bool getFloatProperty(string key, float * valOut);
+
 	bool removeProperty(string key);
 	map<string ,string> getProperties();
 
@@ -168,6 +213,7 @@ private:
 	bool		restoreValuesFromDB();
 	bool		insertValueToDB(string key, string value, time_t time );
 	bool		saveUniqueValueToDB(string key, string value, time_t time );
+	
 	
 	map<string, pair<time_t, string>> _values;
  
