@@ -62,6 +62,9 @@ public:
 
 	void reset(); 	// reset from timeout
 	
+	void setQueryDelay( uint64_t secs) {_queryDelay = secs;};
+	
+	
 private:
 
 	void eventProcessor();
@@ -91,7 +94,7 @@ private:
 	inverterState_t	_inv_state;		// inverter processor state
 	string				_response;
 	
-	time_t		_lastResponseTime;
+	time_t			_lastResponseTime;
 	bool			_isResponding;
 	bool			_isInverterOn;		// inverter on Inverter
 	bool			_isBypass;			// inverter on Bypass

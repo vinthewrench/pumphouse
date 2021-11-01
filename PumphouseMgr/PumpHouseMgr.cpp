@@ -11,7 +11,7 @@
 
 
 
-const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.2 dev 1";
+const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.3 dev 1";
 
 //void signal_callback_handler(int signum) {
 //	cout << "Caught signal " << signum << endl;
@@ -19,7 +19,10 @@ const char* 	PumpHouseMgr::PumpHouseMgr_Version = "1.0.2 dev 1";
 //	exit(signum);
 //}
 
-PumpHouseMgr::PumpHouseMgr(): _tankSensor(&_db), _inverter(&_db){
+PumpHouseMgr::PumpHouseMgr():
+								_tankSensor(&_db),
+								_inverter(&_db),
+								_pumpSensor(&_db){
 //	signal(SIGINT, signal_callback_handler);
 //	signal(SIGHUP, signal_callback_handler);
 //	signal(SIGQUIT, signal_callback_handler);
@@ -85,6 +88,7 @@ void PumpHouseMgr::start(){
  	startShunt();
 	startTempSensor();
 	startTankSensor();
+	startPumpSensor();
 }
 
 void PumpHouseMgr::stop(){
@@ -92,6 +96,12 @@ void PumpHouseMgr::stop(){
 	stopShunt();
 	stopTankSensor();
 	stopTempSensor();
+	stopPumpSensor();
+}
+
+
+void PumpHouseMgr::setActiveConnections(bool isActive){
+	_hasActiveConnections = isActive;
 }
 
 
@@ -131,6 +141,13 @@ void PumpHouseMgr::run(){
 				});
 			}
 
+			if(_pumpSensor.isConnected()){
+				// handle input
+				_pumpSensor.rcvResponse([=]( map<string,string> results){
+					_db.insertValues(results);
+				});
+			}
+
 			if(_smartshunt.isConnected() || _inverter.isConnected() ) {
 				
 				_state = PumpHouseDevice::DEVICE_STATE_CONNECTED;
@@ -166,6 +183,7 @@ void PumpHouseMgr::run(){
 				}
 				
 				if(_inverter.isConnected()){
+					
 					_inverter.rcvResponse([=]( map<string,string> results){
 						_db.insertValues(results);
 					});
@@ -175,15 +193,18 @@ void PumpHouseMgr::run(){
 					LOGT_ERROR("SERIAL SELECT ERROR - FAIL %s", string(strerror(errno)).c_str());
 				}
 			}
-			else { // no devices wait for timeoy value
+			else { // no devices wait for timeout value
 				sleep(TIMEOUT_SEC);
 			}
 			
+			_inverter.setQueryDelay(_hasActiveConnections?60:5	);
+ 
 			_inverter.idle();
 			_smartshunt.idle();
 			_tempSensor1.idle();
 			_tempSensor2.idle();
 			_tankSensor.idle();
+			_pumpSensor.idle();
 			_cpuInfo.idle();
 		};
 	}
@@ -340,7 +361,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 	if(didSucceed){
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
-						  "Temp Sensor 1",
+						  "Inverter Temperature",
 						  PumpHouseDB::TR_TRACK);
 		
 		LOGT_DEBUG("Start TempSensor 1 - OK");
@@ -357,7 +378,7 @@ void PumpHouseMgr::startTempSensor( std::function<void(bool didSucceed, std::str
 	if(didSucceed){
 		_db.addSchema(resultKey,
 						  PumpHouseDB::DEGREES_C,
-						  "Temp Sensor 2",
+						  "Battery Temperature",
 						  PumpHouseDB::TR_TRACK);
 		
 		LOGT_DEBUG("Start TempSensor 2 - OK");
@@ -435,6 +456,43 @@ PumpHouseDevice::device_state_t PumpHouseMgr::tankSensorState(){
 	return _tankSensor.getDeviceState();
 }
 
+// MARK: -   Pump Sensor
+
+void PumpHouseMgr::startPumpSensor( std::function<void(bool didSucceed, string error_text)> cb){
+	
+	int  errnum = 0;
+	bool didSucceed = false;
+	
+	const string PUMP_SENSOR_KEY = "PUMP_SENSOR";
+
+	didSucceed =  _pumpSensor.begin(0x27,PUMP_SENSOR_KEY, &errnum);
+ 
+	if(didSucceed)
+		LOGT_DEBUG("Start PumpSensor  - OK");
+	else
+		LOGT_ERROR("Start PumpSensor  - FAIL %s", string(strerror(errnum)).c_str());
+
+	// log the restart
+	if(_pumpSensor.isConnected()){
+		_pumpSensor.rcvResponse([=]( map<string,string> results){
+			_db.insertValues(results);
+		});
+	}
+
+	if(cb)
+		(cb)(didSucceed, didSucceed?"": string(strerror(errnum) ));
+}
+
+										  
+ void PumpHouseMgr::stopPumpSensor(){
+	 _pumpSensor.stop();
+ }
+ 
+PumpHouseDevice::device_state_t PumpHouseMgr::pumpSensorState(){
+	return _pumpSensor.getDeviceState();
+}
+ 
+// MARK: - utilities
 
 extern "C" {
 

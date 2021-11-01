@@ -55,3 +55,4 @@ VPV,mV,2,Panel voltage
 WARN,Int,2,Warning reason
 MON,Int,2,DC monitor mode
 CPU_TEMP,degC,3,CPU Temp
+PUMP_SENSOR,Int,2,Pump Sensor

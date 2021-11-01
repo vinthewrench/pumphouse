@@ -1,12 +1,12 @@
 //
-//  TankDepth.hpp
+//  PumpSensor.hpp
 //  pumphouse
 //
-//  Created by Vincent Moscaritolo on 9/12/21.
+//  Created by Vincent Moscaritolo on 10/29/21.
 //
 
-#ifndef TankDepth_hpp
-#define TankDepth_hpp
+#ifndef PumpSensor_hpp
+#define PumpSensor_hpp
  
 #include <stdio.h>
 #include <functional>
@@ -18,17 +18,17 @@
 #include "PumpHouseDevice.h"
 #include "PumpHouseDB.hpp"
 
-#include "MCP3427.hpp"
+#include "TCA9534.hpp"
 
 using namespace std;
 
-class TankDepth : public PumpHouseDevice{
+class PumpSensor : public PumpHouseDevice{
  
 public:
-	TankDepth(PumpHouseDB *db);
-	~TankDepth();
+	PumpSensor(PumpHouseDB *db);
+	~PumpSensor();
  
-	bool begin(int deviceAddress, string resultKey, string rawResultKey = "", int *error = NULL);
+	bool begin(int deviceAddress, string resultKey , int *error = NULL);
 	void stop();
 
 	bool isConnected();
@@ -54,16 +54,15 @@ private:
 	in_state_t 		_state;
 	map<string,string> _resultMap;
  
-	MCP3427			_sensor;
+	TCA9534			_sensor;
 	string				_resultKey;
-	string				_rawResultKey;
  
-	uint16_t 			_valFull;			// upper range value	- Tank full
-	uint16_t 			_valEmpty;			// lower range value	- Tank empty
-	
 	timeval			_lastQueryTime;
 	uint64_t     	_queryDelay;			// how long to wait before next query
 
 	PumpHouseDB*	_db;
 };
-#endif /* TankDepth_hpp */
+ 
+#endif /* PumpSensor_hpp */
+
+

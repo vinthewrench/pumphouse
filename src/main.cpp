@@ -39,7 +39,6 @@ int main(int argc, const char * argv[]) {
 	auto cmdQueue = new ServerCmdQueue(&apiSecrets);
 	registerServerNouns();
 	registerCommandsLineFunctions();
-
 	
 	
 	TCPServer telnet_server(cmdQueue);
@@ -55,7 +54,10 @@ int main(int argc, const char * argv[]) {
 	
 	// run the main loop.
 	while(true) {
-		sleep(60);
+
+		pumphouse.setActiveConnections( rest_server.hasActiveConnections()
+												|| telnet_server.hasActiveConnections());
+ 		sleep(2);
 	}
 
 	return 0;

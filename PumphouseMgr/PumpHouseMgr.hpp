@@ -23,6 +23,7 @@
 #include "TempSensor.hpp"
 #include "TankDepth.hpp"
 #include "CPUInfo.hpp"
+#include "PumpSensor.hpp"
 
 using namespace std;
  
@@ -56,6 +57,10 @@ public:
 	void stopTankSensor();
 	PumpHouseDevice::device_state_t tankSensorState();
 	
+	void startPumpSensor( std::function<void(bool didSucceed, std::string error_text)> callback = NULL);
+	void stopPumpSensor();
+	PumpHouseDevice::device_state_t pumpSensorState();
+
 	string deviceStateString(PumpHouseDevice::device_state_t st);
  
 	bool initDataBase(string schemaFilePath = "", string logDBFilePath = "");
@@ -65,11 +70,14 @@ public:
 	PumpHouseDevice::device_state_t pumpHouseState() {return _state;};
 	PumpHouseDB*		getDB() {return &_db; };
 	
+	void setActiveConnections(bool isActive);
+	
  private:
 	 
 	 bool 						_running;				//Flag for starting and terminating the main loop
 	 std::thread 			_thread;				//Internal thread
-	 
+	bool						_hasActiveConnections;
+	
 	 void run();
 
 	PumpHouseDevice::device_state_t	_state;
@@ -79,6 +87,7 @@ public:
 	SigineerInverter		_inverter;
 	TempSensor			_tempSensor1;
 	TempSensor			_tempSensor2;
+	PumpSensor			_pumpSensor;
 	TankDepth 			_tankSensor;
 	CPUInfo				_cpuInfo;
 	PumpHouseDB			_db;

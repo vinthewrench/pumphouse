@@ -66,17 +66,24 @@ class PumpStatusViewController: UIViewController {
 	
 	@IBOutlet var imgWellPump			: UIImageView!
 	@IBOutlet var lblPumpStatus		: UILabel!
+	var pumpIsAnimated:Bool = false
 	
 	@IBOutlet var imgPressurePump		: UIImageView!
-	
+	@IBOutlet var lblPressurePumpStatus		: UILabel!
+	var pressurePumpIsAnimated:Bool = false
+
 	@IBOutlet var vwPower		: UIView!
 	@IBOutlet var btnInverter	: UIButton!
+	
+	@IBOutlet var imgAC				: UIImageView!
+	@IBOutlet var lblAC				: UILabel!
+	@IBOutlet var imgGenerator	: UIImageView!
+	@IBOutlet var lblGenerator	: UILabel!
 
 	@IBOutlet var lblACin	: UILabel!
 	@IBOutlet var lblACout	: UILabel!
 	@IBOutlet var lblAChz	: UILabel!
 	@IBOutlet var lblACcur	: UILabel!
-	@IBOutlet var imgAC		: UIImageView!
 	
 	@IBOutlet var imgInverter: UIImageView!
 	@IBOutlet var imgACin		: UIImageView!
@@ -136,22 +143,121 @@ class PumpStatusViewController: UIViewController {
 		self.vwTemp!.layer.borderColor = UIColor.darkGray.cgColor
 	}
 	
+	private func animatePump(_ start: Bool) {
+		
+		if start {
+			if self.pumpIsAnimated {
+				return
+			}
+			
+			self.lblPumpStatus.alpha = 0.0
+			self.pumpIsAnimated = true
+			
+			UIView.animate(withDuration: 0.8, //Time duration you want,
+								delay: 0.0,
+								options: [.curveEaseInOut, .autoreverse, .repeat],
+								animations: { [weak self] in self!.lblPumpStatus?.alpha = 1.0 },
+								completion: { [weak self] _ in self!.lblPumpStatus?.alpha = 0.0 })
+		}
+		 else {
+			 
+			 if !self.pumpIsAnimated {
+				 return
+			 }
+
+			 self.pumpIsAnimated = false
+			 self.lblPumpStatus.alpha = 1
+			 self.lblPumpStatus.layer.removeAllAnimations()
+		 }
+	}
+	
+	private func animatePressurePump(_ start: Bool) {
+		
+		if start {
+			if self.pressurePumpIsAnimated {
+				return
+			}
+			
+			self.lblPressurePumpStatus.alpha = 0.0
+			self.pressurePumpIsAnimated = true
+			
+			UIView.animate(withDuration: 0.8, //Time duration you want,
+								delay: 0.0,
+								options: [.curveEaseInOut, .autoreverse, .repeat],
+								animations: { [weak self] in self!.lblPressurePumpStatus?.alpha = 1.0 },
+								completion: { [weak self] _ in self!.lblPressurePumpStatus?.alpha = 0.0 })
+		}
+		 else {
+			 
+			 if !self.pumpIsAnimated {
+				 return
+			 }
+
+			 self.pressurePumpIsAnimated = false
+			 self.lblPressurePumpStatus.alpha = 1
+			 self.lblPressurePumpStatus.layer.removeAllAnimations()
+		 }
+	}
+
 	
 	private func refreshView() {
 		
 		if(AppData.serverInfo.validated){
 
-			// we dont have HW for this yet
-			lblPumpStatus.isHidden = true
-			imgWellPump.tintColor = UIColor.lightGray
-			imgPressurePump.tintColor = UIColor.lightGray
-	
+			self.lblGenerator.textColor =  UIColor.lightGray
+			self.imgGenerator.tintColor =  UIColor.lightGray
+
 			PumpHouse.shared.fetchValues() { result in
 				
 				if case .success(let phv as PumpHouseValues ) = result {
 					
 					self.vwOverlay.isHidden = true
 					var newHeight:CGFloat;
+				
+					switch(phv.pumpState){
+					case .paused:
+						self.lblPumpStatus.isHidden = false
+						self.lblPumpStatus.text = "Paused…"
+						self.animatePump(true);
+ 						self.lblPumpStatus.textColor =  UIColor.systemOrange
+						self.imgWellPump.tintColor = UIColor.black
+
+					case .pumping:
+						self.lblPumpStatus.isHidden = false
+						self.lblPumpStatus.text = "Pumping…"
+						self.animatePump(true);
+						self.lblPumpStatus.textColor =  UIColor.systemBlue
+						self.imgWellPump.tintColor = UIColor.systemBlue
+		
+					case .off:
+						self.lblPumpStatus.isHidden = true
+ 						self.imgWellPump.tintColor = UIColor.black
+						self.animatePump(false);
+						
+					default:
+						self.lblPumpStatus.isHidden = true
+						self.animatePump(false);
+ 						self.imgWellPump.tintColor = UIColor.lightGray
+					}
+		 
+					switch(phv.pressureTankState){
+					case .pumping:
+						self.lblPressurePumpStatus.textColor =  UIColor.systemBlue
+						self.imgPressurePump.tintColor = UIColor.systemBlue
+						self.lblPressurePumpStatus.isHidden = false
+						self.lblPressurePumpStatus.text = "Pumping…"
+						self.animatePressurePump(true);
+	
+					case .off:
+						self.lblPressurePumpStatus.isHidden = true
+						self.imgPressurePump.tintColor = UIColor.black
+						self.animatePressurePump(false);
+	
+					default:
+						self.animatePressurePump(false);
+
+						self.imgPressurePump.tintColor = UIColor.lightGray
+					}
 					
 					self.lblPumpAvail.text =  String(format: "%.0f%%", phv.tankPercent )
 					self.lblPumpGals.text =  String(format: "%.f Gals", phv.tankGals )
@@ -219,13 +325,15 @@ class PumpStatusViewController: UIViewController {
 						self.btnInverter.setTitleColor(UIColor.black, for: .normal);
 
 						self.lblACout.isHidden = false
-		
+
+						
 						if(phv.utilityFail){
 							self.btnInverter.setTitle("Inverter", for: .normal)
 							self.imgBatOut.isHidden = false
 							self.imgBatIn.isHidden = true
 							self.imgBattery.tintColor = UIColor.red
 							self.imgACin.tintColor =  UIColor(white: 0.80, alpha: 	0.8)
+							self.lblAC.tintColor =  UIColor(white: 0.80, alpha: 	0.8)
 							self.imgAC.tintColor =  UIColor(white: 0.80, alpha: 	0.8)
 							self.lblACin.isHidden = true
 							self.lblBatTime.isHidden = false
@@ -288,7 +396,7 @@ class PumpStatusViewController: UIViewController {
 		self.lblPumpGals.text =  ""
 		originalTankHeight = self.cnstTankHeight.constant;
 		originalBatteryHeight = self.cnstBatteryHeight.constant;
-		
+ 
 		if(AppData.serverInfo.validated){
 			startPolling();
 		}
@@ -357,7 +465,7 @@ class PumpStatusViewController: UIViewController {
 	@IBAction func wellPumpImageTapped(sender: UITapGestureRecognizer) {
 		
 		if (sender.state == .ended) {
-					
+			print("wellPumpImageTapped")
 		}
 	}
 
