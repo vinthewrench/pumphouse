@@ -6,7 +6,7 @@
 
 One of the advantages of country living is that our water is supplied by a well. Unfortunately we don't always have the flow that we need, especially in the summer months.  So we added an underground cistern storage tank.   The well pump fills the cistern until the float indicates full.  To provide the appropriate domestic water pressure, an additional pump is used to pressurize a tank until the cut off switch turns off.  The pumps are typically 1/2 to 3/4 hp and run at 220 volts.  All of this is contained in a separate pump house structure from the dwellings.
 
-![well pump plumbing setup](Pump Plumbing.png )
+<img src="Pump Plumbing.png" alt="well pump plumbing setup" style="zoom: 50%;" />
 
 The downside to this setup is that it needs electricity to keep the tank pressurized.  For a number of years we got by with a backup generator that I would have to manually start when I wanted water.   It seemed wasteful to run a generator for what is usually an intermittent load.  Once the tank has achieved appropriate pressure, you can shut it down. But then you have to start it again when the pressure drops below the limit. 
 
@@ -115,21 +115,27 @@ For the most part I am pretty happy with this setup.  I would have liked to use 
 
 ------
 
-[^Sigineer Power APC6024D]: (https://www.sigineer.com/product/6000-watt-24-volt-to-120240-vac-split-phase-inverter-charger-pure-sine-wave/
-[^Sigineer Power Owners Manual]: https://www.sigineer.com/wp-content/uploads/2015/01/Sigineer-Power-1.5-6KW-Any-Power-Combi-Inverter-Charger-Owners-Manual.pdf
-[^Sigineer Power Protocol]: https://www.sigineer.com/wp-content/uploads/2015/01/Sigineer-Power-Inverter-Charger-RS232-Communicate-Protocol.pdf
-[^Victron Energy SmartShunt]: (https://www.victronenergy.com/battery-monitors/smart-battery-shunt)
-[^VE.Direct USB Cable]: https://www.amazon.com/Victron-Energy-VE-Direct-USB-Cable/dp/B01LZ6WTLW
-[^VE.Direct Protocol details ]: https://www.victronenergy.com/support-and-downloads/technical-information
-[^VE.Direct Protocol FAQ ]: https://www.victronenergy.com/live/vedirect_protocol:faq
-[^Class T Fuse]: https://www.bluesea.com/products/5502100/Class_T_Fuse_Block_with_Insulating_Cover_-_225_to_400A
-[^Siemens ECSBPK01 Generator Standby Power Mechanical Interlock]: https://www.amazon.com/dp/B004Q01XSSClass 
-[^NEC® Requirements for Generators and Standby Power Systems]:http://www.mikeholt.com/download.php?file=PDF/11_Generators_and_Standby_Power_Systems.pdf
-[^AC Infinity AIRLIFT T14, Shutter Exhaust Fan]: https://www.amazon.com/dp/B07T93CHKJ
+### References 
 
+**Sigineer Power APC6024D**  https://www.sigineer.com/product/6000-watt-24-volt-to-120240-vac-split-phase-inverter-charger-pure-sine-wave/
 
+**Sigineer Power Owners Manual** https://www.sigineer.com/wp-content/uploads/2015/01/Sigineer-Power-1.5-6KW-Any-Power-Combi-Inverter-Charger-Owners-Manual.pdf
 
+**Sigineer Power Protocol** https://www.sigineer.com/wp-content/uploads/2015/01/Sigineer-Power-Inverter-Charger-RS232-Communicate-Protocol.pdf
 
+**Victron Energy SmartShunt**  https://www.victronenergy.com/battery-monitors/smart-battery-shunt)
 
+**VE.Direct USB Cable** https://www.amazon.com/Victron-Energy-VE-Direct-USB-Cable/dp/B01LZ6WTLW
 
+**VE.Direct Protocol details ** https://www.victronenergy.com/support-and-downloads/technical-information
+
+**VE.Direct Protocol FAQ ** https://www.victronenergy.com/live/vedirect_protocol:faq
+
+**Class T Fuse** https://www.bluesea.com/products/5502100/Class_T_Fuse_Block_with_Insulating_Cover_-_225_to_400A
+
+**Siemens ECSBPK01 Generator Standby Power Mechanical Interlock** https://www.amazon.com/dp/B004Q01XSSClass 
+
+**NEC® Requirements for Generators and Standby Power Systems**http://www.mikeholt.com/download.php?file=PDF/11_Generators_and_Standby_Power_Systems.pdf
+
+**AC Infinity AIRLIFT T14, Shutter Exhaust Fan** https://www.amazon.com/dp/B07T93CHKJ
 
