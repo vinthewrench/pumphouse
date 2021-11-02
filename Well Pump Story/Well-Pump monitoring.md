@@ -40,7 +40,7 @@ The batteries will be most likely spend most of their lifetime in a charged or s
 
 I constructed a battery box from marine plywood with a front cover that I can slide out to access the batteries. By the way the L16 units weigh about 125 pounds each.   I designed the box with a stovepipe vent and fresh air intake to prevent hydrogen from accumulating.
 
-​        <img src="/Users/vinnie/Documents/home hardware mans/Well Pump & UPS/Well Pump Story/battery box.png" alt="battery box" style="zoom: 33%;" />          <img src="box1.png" alt="box1" style="zoom: 25%;" />
+​        <img src="battery box.png" alt="battery box" style="zoom: 33%;" />          <img src="box1.png" alt="box1" style="zoom: 25%;" />
 
 The batteries are wired in a 24 volt configuration and fused with a [Blue Sea class T fuse block](https://www.bluesea.com/products/5502100/Class_T_Fuse_Block_with_Insulating_Cover_-_225_to_400A). The batteries can produce an amazing amount of current, and given the possibility of hydrogen in the box, you don't want to cut corners on this. In addition I added a [Victron Energy SmartShunt](https://www.victronenergy.com/battery-monitors/smart-battery-shunt) so I could monitor the state of charge.
 
