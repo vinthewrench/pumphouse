@@ -39,12 +39,11 @@ public:
 	ssize_t readBytes(void *buf, size_t nbyte);
 	ssize_t readByte(void *buf);
 
+	ssize_t writeBytes(const uint8_t* buf, size_t nbyte);
+
 	ssize_t writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte);
 	ssize_t writeByte(uint8_t regAddr, const uint8_t data);
 	ssize_t writeByte(const uint8_t data);
-
-//	ssize_t readBytes(void *buf, size_t nbyte);
-
 	
 	uint8_t	getDevAddr() {return _devAddr;};
 	

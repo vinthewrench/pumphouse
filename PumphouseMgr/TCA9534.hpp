@@ -31,23 +31,31 @@ public:
  
 	uint8_t	getDevAddr();
 
-	bool pinMode(uint8_t gpioNumber, bool mode);
-	bool pinMode(bool *gpioPinMode);
+	bool writeConfig(uint8_t val);
+	bool writeInvert(uint8_t val);
 
-	bool invertPin(uint8_t gpioNumber, bool inversionMode);
-	bool invertPin(bool *inversionMode);
+	bool readInput(uint8_t &val);
 
-	bool digitalWrite(uint8_t gpioNumber, bool value);
-	bool digitalWrite(bool *gpioStatus);
 	
-	bool digitalRead(uint8_t gpioNumber);
-	uint8_t digitalReadPort(bool *gpioStatus);
-	
-	bool readBit(uint8_t regAddr, uint8_t bitAddr);
-	bool writeBit(uint8_t regAddr, uint8_t bitAddr, bool bitToWrite);
-	
-	uint8_t readRegister(uint8_t addr);
-	bool writeRegister(uint8_t addr, uint8_t val);
+//	bool pinMode(uint8_t gpioNumber, bool mode);
+//	bool pinMode(bool *gpioPinMode);
+//
+//	bool invertPin(uint8_t gpioNumber, bool inversionMode);
+//	bool invertPin(bool *inversionMode);
+//
+//	bool digitalWrite(uint8_t gpioNumber, bool value);
+//	bool digitalWrite(bool *gpioStatus);
+//
+//	bool digitalRead(uint8_t gpioNumber);
+//	uint8_t digitalReadPort(bool *gpioStatus);
+//
+//	bool readBit(uint8_t regAddr, uint8_t bitAddr);
+//	bool writeBit(uint8_t regAddr, uint8_t bitAddr, bool bitToWrite);
+//
+//	uint8_t readRegister(uint8_t addr);
+//	bool writeRegister(uint8_t addr, uint8_t val);
+
+//	bool readBits(uint8_t &bits);
 
 private:
 	

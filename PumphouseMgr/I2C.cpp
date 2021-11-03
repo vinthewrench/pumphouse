@@ -100,6 +100,32 @@ bool I2C::isAvailable(){
 	return true;
 }
 
+ssize_t I2C::writeBytes(const uint8_t* buf, size_t nbyte){
+	
+	ssize_t count = 0;
+
+	if(!_isSetup)
+		return -1;
+
+	if (::ioctl(_fd, I2C_SLAVE, _devAddr) < 0)
+	{
+		LOG_ERROR("Failed to select I2C  device(%02X): %s\n", _devAddr,strerror(errno));
+		return -1;
+	}
+ 
+	count =  ::write(_fd, buf, nbyte);
+	if (count < 0) {
+			LOG_ERROR( "Failed to write %d bytes to device(%02x): %s\n", nbyte, _devAddr, strerror(errno));
+		return(-1);
+	} else if (count != nbyte) {
+		LOG_ERROR( "Short write from device(%02x): expected %d, got %d \n", _devAddr, nbyte, count);
+		return(-1);
+	}
+	
+	return count;
+}
+
+
 
 ssize_t I2C::writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte){
 	
@@ -121,7 +147,7 @@ ssize_t I2C::writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte){
 	
 	count =  ::write(_fd, buf, nbyte);
 	if (count < 0) {
-			LOG_ERROR( "Failed to write device(%02x): %s\n", regAddr, strerror(errno));
+			LOG_ERROR( "Failed to write %d bytes to device(%02x, %02x): %s\n", nbyte, _devAddr, regAddr, strerror(errno));
 		return(-1);
 	} else if (count != nbyte) {
 		LOG_ERROR( "Short write from device(%02x): expected %d, got %d \n", regAddr, nbyte, count);
@@ -133,7 +159,7 @@ ssize_t I2C::writeBytes(uint8_t regAddr, const uint8_t* buf, size_t nbyte){
 
 
 ssize_t I2C::writeByte(uint8_t regAddr, const uint8_t data){
-	return writeBytes(regAddr, &data, data);
+	return writeBytes(regAddr, &data, 1);
 }
 
 ssize_t I2C::writeByte(const uint8_t data){

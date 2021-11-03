@@ -28,14 +28,14 @@ bool PumpSensor::begin(int deviceAddress, string resultKey, int *error){
 	
 	status = _sensor.begin(deviceAddress, error);
 	
-	
-	//DEBUG
-	status = true;
-	
-	
 	if(status){
+		
+		_sensor.writeConfig(0xff);
+ 		_sensor.writeInvert( 0xFF);
+	
+		
 		_state = INS_IDLE;
-		_queryDelay = 5;	// seconds
+		_queryDelay =  5;	// seconds
 		_lastQueryTime = {0,0};
 		_resultMap.clear();
 		_resultKey = resultKey;
@@ -60,9 +60,6 @@ void PumpSensor::reset(){
  
 bool PumpSensor::isConnected(){
 	
-	//DEBUG
-	return(true);
-
 	return _sensor.isOpen();
 }
  
@@ -70,11 +67,6 @@ PumpHouseDevice::response_result_t
 PumpSensor::rcvResponse(std::function<void(map<string,string>)> cb){
 
 	PumpHouseDevice::response_result_t result = NOTHING;
-	
-	//DEBUG
-//	if(!_sensor.isOpen()) {
-//		return ERROR;
-//	}
 	
 	if(_state == INS_RESPONSE){
 		result = PROCESS_VALUES;
@@ -138,12 +130,20 @@ void PumpSensor::idle(){
 		
 		if(shouldQuery){
 		
-			///  do read here..
-			///     0000 0  |	pressure Tank Runninng | Pump Running  | PumpPower
-			uint8_t val = 0x01;
-			_resultMap[_resultKey] =  std::bitset<8>(val).to_string();
-	 		_state = INS_RESPONSE;
- 
+	 
+			uint8_t val = 0;
+			
+			if(_sensor.readInput(val)){
+				
+				// DEBUG - only two wires are hooked up now
+  				val = val & 0x03;
+			 
+				//   0000 0  |	pressure Tank Runninng | Pump Running  | PumpPower
+
+//				printf("TCA: %02x\n", val);
+				_resultMap[_resultKey] =  std::bitset<8>(val).to_string();
+				_state = INS_RESPONSE;
+	 		}
 			gettimeofday(&_lastQueryTime, NULL);
 		}
 	}

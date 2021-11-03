@@ -405,15 +405,15 @@ public class PumpHouse {
 				
 				if case .success(let v as RESTValuesList) = result {
 					
+					var phv :PumpHouseValues = .init()
+					
+					phv.inverterState = DeviceState(rawValue:v.inverter) ?? .unknown
+					phv.batteryLastTime = v.batteryLastTime
+					
+					phv.batteryState = DeviceState(rawValue:v.battery) ?? .unknown
+					
 					if let s1 = v.values["TANK_RAW"]?.value,
 						var tank_raw = Double(s1) {
-						
-						var phv :PumpHouseValues = .init()
-						
-						phv.inverterState = DeviceState(rawValue:v.inverter) ?? .unknown
-						phv.batteryLastTime = v.batteryLastTime
-						
-						phv.batteryState = DeviceState(rawValue:v.battery) ?? .unknown
 						
 						let empty =  self.cachedValues.tankEmpty
 						let full =  self.cachedValues.tankFull
@@ -428,97 +428,98 @@ public class PumpHouse {
 						phv.tankPercent =  tankP * 100.00
 						phv.rawTank = tank_raw
 						phv.tankGals = gals * tankP
-						
-						if let s1 = v.values["I_IPFV"]?.value,
-							let val = Double(s1) {
-							phv.acIn = val
-						}
-						if let s1 = v.values["I_OPV"]?.value,
-							let val = Double(s1) {
-							phv.acOut = val
-						}
-						if let s1 = v.values["I_FREQ"]?.value,
-							let val = Double(s1) {
-							phv.acHz = val
-						}
-						if let s1 = v.values["I_OPC"]?.value,
-							let val = Double(s1) {
-							phv.invLoad = val
-						}
-						
-						if let s1 = v.values["SOC"]?.value,
-							let val = Double(s1) {
-							phv.batSOC = val
-						}
-						
-						if let s1 = v.values["V"]?.value,
-							let val = Double(s1) {
-							phv.batVolts = val
-						}
-						if let s1 = v.values["I"]?.value,
-							let val = Double(s1) {
-							phv.batAmps = val
-						}
-						if let s1 = v.values["I_STATUS"]?.value,
-							s1.count == 8 {
-							phv.utilityFail =  s1[0]=="1"
-							phv.batteryLow = s1[1] == "1"
-						}
-						
-						if let s1 = v.values["CPU_TEMP"]?.value,
-							let val = Double(s1) {
-							phv.cpuTemp = val
-							
-						}
-						if let s1 = v.values["TEMP_0x48"]?.value,
-							let val = Double(s1) {
-							phv.temp1 = val
-						}
-						
-						if let s1 = v.values["TEMP_0x49"]?.value,
-							let val = Double(s1) {
-							phv.temp2 = val
-						}
-						
-						if let s1 = v.values["TTG"]?.value,
-							let val = Double(s1) {
-							phv.batteryTime = val
-						}
-						
-						if let s1 = v.values["CE"]?.value,
-							let val = Double(s1) {
-							phv.batteryConsumed = val
-						}
-
-						if let s1 = v.values["PUMP_SENSOR"]?.value,
-							s1.count == 8 {
-							
-							let b2 =  s1[5]=="1"
-							let b1 =  s1[6]=="1"
-							let b0 =  s1[7]=="1"
-							
-							phv.pumpState = .unknown
-							if(!b0 && !b1) {
-								phv.pumpState = .paused
-							}
-							else if(b0 && !b1) {
-								phv.pumpState = .off
-							}
-							else if(b0 && b1) {
-								phv.pumpState = .pumping
-							}
-				
-							if(b2){
-								phv.pressureTankState = .pumping
-							}
-							else {
-								phv.pressureTankState = .off
-							}
-
-						}
-						
-						completionHandler(.success(phv))
 					}
+					
+					if let s1 = v.values["I_IPFV"]?.value,
+						let val = Double(s1) {
+						phv.acIn = val
+					}
+					if let s1 = v.values["I_OPV"]?.value,
+						let val = Double(s1) {
+						phv.acOut = val
+					}
+					if let s1 = v.values["I_FREQ"]?.value,
+						let val = Double(s1) {
+						phv.acHz = val
+					}
+					if let s1 = v.values["I_OPC"]?.value,
+						let val = Double(s1) {
+						phv.invLoad = val
+					}
+					
+					if let s1 = v.values["SOC"]?.value,
+						let val = Double(s1) {
+						phv.batSOC = val
+					}
+					
+					if let s1 = v.values["V"]?.value,
+						let val = Double(s1) {
+						phv.batVolts = val
+					}
+					if let s1 = v.values["I"]?.value,
+						let val = Double(s1) {
+						phv.batAmps = val
+					}
+					if let s1 = v.values["I_STATUS"]?.value,
+						s1.count == 8 {
+						phv.utilityFail =  s1[0]=="1"
+						phv.batteryLow = s1[1] == "1"
+					}
+					
+					if let s1 = v.values["CPU_TEMP"]?.value,
+						let val = Double(s1) {
+						phv.cpuTemp = val
+						
+					}
+					if let s1 = v.values["TEMP_0x48"]?.value,
+						let val = Double(s1) {
+						phv.temp1 = val
+					}
+					
+					if let s1 = v.values["TEMP_0x49"]?.value,
+						let val = Double(s1) {
+						phv.temp2 = val
+					}
+					
+					if let s1 = v.values["TTG"]?.value,
+						let val = Double(s1) {
+						phv.batteryTime = val
+					}
+					
+					if let s1 = v.values["CE"]?.value,
+						let val = Double(s1) {
+						phv.batteryConsumed = val
+					}
+					
+					if let s1 = v.values["PUMP_SENSOR"]?.value,
+						s1.count == 8 {
+						
+						let b2 =  s1[5]=="1"
+						let b1 =  s1[6]=="1"
+						let b0 =  s1[7]=="1"
+						
+						phv.pumpState = .unknown
+						if(!b0 && !b1) {
+							phv.pumpState = .paused
+						}
+						else if(b0 && !b1) {
+							phv.pumpState = .off
+						}
+						else if(b0 && b1) {
+							phv.pumpState = .pumping
+						}
+						
+						if(b2){
+							phv.pressureTankState = .pumping
+						}
+						else {
+							phv.pressureTankState = .off
+						}
+						
+					}
+					
+					completionHandler(.success(phv))
+					
 				}
 				else {
 					completionHandler(.failure(PumpHouseError.connectFailed))
