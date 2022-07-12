@@ -416,7 +416,7 @@ void PumpHouseMgr::startTankSensor( std::function<void(bool didSucceed, std::str
 	bool didSucceed = false;
 	
 	
-	uint8_t deviceAddress = 0x68;
+	uint8_t deviceAddress = 0x69;
 	
 	const string TANK_DEPTH_KEY = "TANK";
 	const string TANK_DEPTH_RAW_KEY = "TANK_RAW";
