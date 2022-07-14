@@ -84,7 +84,7 @@ bool PumpHouseMgr::initDataBase(string schemaFilePath,
 void PumpHouseMgr::start(){
 	initDataBase();
 	
-	startInverter();
+//	startInverter();
  	startShunt();
 	startTempSensor();
 	startTankSensor();
@@ -92,7 +92,7 @@ void PumpHouseMgr::start(){
 }
 
 void PumpHouseMgr::stop(){
-	stopInverter();
+//	stopInverter();
 	stopShunt();
 	stopTankSensor();
 	stopTempSensor();
